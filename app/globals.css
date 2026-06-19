@@ -1624,6 +1624,45 @@ input {
   font-size: 12px;
 }
 
+.blueprint-viewer {
+  position: relative;
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 45%, #151b22 0, #090b0f 70%);
+}
+
+.blueprint-viewer canvas {
+  display: block;
+  width: 100%;
+  height: 420px;
+  pointer-events: none;
+}
+
+.blueprint-viewer-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #c8c7bd;
+  background: rgba(7, 9, 12, 0.72);
+  text-align: center;
+}
+
+.blueprint-viewer-error {
+  gap: 8px;
+  align-content: center;
+  color: #ffcf8a;
+}
+
+.blueprint-viewer-error strong,
+.blueprint-viewer-error span {
+  display: block;
+}
+
 .upload-form-footer {
   display: flex;
   align-items: center;

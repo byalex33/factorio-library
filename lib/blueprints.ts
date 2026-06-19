@@ -65,7 +65,7 @@ export function readStoredBlueprints(): StoredBlueprint[] {
     const raw = window.localStorage.getItem(BLUEPRINT_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? (parsed as StoredBlueprint[]) : [];
   } catch {
     return [];
   }
