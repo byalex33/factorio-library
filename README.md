@@ -7,6 +7,7 @@ A Vercel-friendly Next.js foundation for a public Factorio blueprint string libr
 - Next.js App Router
 - Tailwind CSS v4
 - Clerk authentication
+- Neon Postgres database storage
 - Vercel-ready deployment defaults
 
 ## Local setup
@@ -17,7 +18,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Add Clerk keys to `.env.local` before testing authentication.
+Add Clerk keys and `DATABASE_URL` from Neon to `.env.local` before testing authentication and uploads. In Vercel, add the same variables in Project Settings → Environment Variables (or connect the Neon integration).
 
 ## Current scope
 
@@ -26,12 +27,13 @@ Implemented:
 - Factorio-themed layout converted from `theme.html`
 - Landing, browse, upload, about, sign-in, sign-up, and reserved blueprint detail routes
 - Clerk provider, auth controls, and proxy middleware
+- Blueprint, report, like, view, and copy storage in Neon Postgres
 - Empty states instead of placeholder blueprint data
 
 Not implemented yet:
 
-- Blueprint upload parsing/storage
-- Browse index and search backend
+- Full blueprint parsing beyond string validation
+- Advanced browse/search backend
 - Versioning
 - Moderation workflow
 

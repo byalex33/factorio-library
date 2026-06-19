@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { HeartIcon, formatBlueprintStatCount } from "@/components/blueprint-visuals";
-import { readBlueprintLikeState, toggleBlueprintLike } from "@/lib/blueprints";
+import { getBlueprintLikeStateAction, toggleBlueprintLikeAction } from "@/lib/blueprint-actions";
 
 type BlueprintLikeButtonVariant = "card" | "detail-stat";
 
@@ -20,25 +20,27 @@ export function BlueprintLikeButton({
   variant = "card",
 }: BlueprintLikeButtonProps) {
   const safeInitialCount = Math.max(0, Math.floor(initialCount));
+  const [isPending, startTransition] = useTransition();
   const [likeState, setLikeState] = useState({ count: safeInitialCount, liked: false });
 
   useEffect(() => {
-    function refresh() {
-      setLikeState(readBlueprintLikeState(blueprintId, safeInitialCount));
-    }
+    let active = true;
 
-    refresh();
-    window.addEventListener("storage", refresh);
-    window.addEventListener("factorio-library:blueprint-likes-updated", refresh);
+    startTransition(async () => {
+      const state = await getBlueprintLikeStateAction(blueprintId, safeInitialCount);
+      if (active) setLikeState(state);
+    });
 
     return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("factorio-library:blueprint-likes-updated", refresh);
+      active = false;
     };
   }, [blueprintId, safeInitialCount]);
 
   function handleClick() {
-    setLikeState(toggleBlueprintLike(blueprintId, safeInitialCount));
+    startTransition(async () => {
+      const nextState = await toggleBlueprintLikeAction(blueprintId, likeState.count);
+      setLikeState(nextState);
+    });
   }
 
   const label = likeState.liked ? `Unlike ${blueprintTitle}` : `Like ${blueprintTitle}`;
@@ -51,6 +53,7 @@ export function BlueprintLikeButton({
       aria-pressed={likeState.liked}
       title={label}
       onClick={handleClick}
+      disabled={isPending}
     >
       <HeartIcon filled={likeState.liked} />
       <span>{formatBlueprintStatCount(likeState.count)}</span>

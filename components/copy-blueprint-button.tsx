@@ -1,23 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { incrementBlueprintCopyCount } from "@/lib/blueprints";
+import { useState, useTransition } from "react";
+import { incrementBlueprintCopyAction } from "@/lib/blueprint-actions";
 
 export function CopyBlueprintButton({
   blueprintString,
   blueprintId,
   initialBlueprintCopies = 0,
+  initialBlueprintViews = 0,
+  initialBlueprintLikes = 0,
 }: {
   blueprintString: string;
   blueprintId?: string;
   initialBlueprintCopies?: number;
+  initialBlueprintViews?: number;
+  initialBlueprintLikes?: number;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [, startTransition] = useTransition();
 
   async function copyBlueprint() {
     try {
       await navigator.clipboard.writeText(blueprintString);
-      incrementBlueprintCopyCount(blueprintId, initialBlueprintCopies);
+      startTransition(async () => {
+        await incrementBlueprintCopyAction(blueprintId, {
+          views: initialBlueprintViews,
+          copies: initialBlueprintCopies,
+          likes: initialBlueprintLikes,
+        });
+      });
       setCopyState("copied");
     } catch (error) {
       console.error("Could not copy blueprint string", error);

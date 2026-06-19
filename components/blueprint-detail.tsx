@@ -8,7 +8,8 @@ import { BlueprintLikeButton } from "@/components/blueprint-like-button";
 import { CopiesIcon, EyeIcon, formatBlueprintStatCount } from "@/components/blueprint-visuals";
 import { CopyBlueprintButton } from "@/components/copy-blueprint-button";
 import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
-import { getStoredBlueprint, incrementBlueprintViewCount, postStoredBlueprintUpdate, readBlueprintEngagementState, saveStoredBlueprintReport, validateBlueprintString, type StoredBlueprint } from "@/lib/blueprints";
+import { normalizePositiveInteger, validateBlueprintString, type BlueprintStats, type StoredBlueprint } from "@/lib/blueprints";
+import { incrementBlueprintViewAction, postBlueprintUpdateAction, submitBlueprintReportAction } from "@/lib/blueprint-actions";
 
 type DetailIconName = "image" | "versions" | "changelog" | "author" | "game" | "calendar" | "history" | "cube" | "grid" | "flag";
 type DetailTab = "blueprint" | "versions" | "changelog";
@@ -42,7 +43,8 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
 }
 
-function parseStatCount(value: string) {
+function parseStatCount(value: string | number) {
+  if (typeof value === "number") return normalizePositiveInteger(value);
   const normalized = value.trim().toLowerCase().replace(/,/g, "");
   const match = normalized.match(/^(\d+(?:\.\d+)?)([km])?$/);
   if (!match) return 0;
@@ -87,7 +89,7 @@ function BlueprintReportForm({
   const [reporter, setReporter] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
@@ -97,7 +99,7 @@ function BlueprintReportForm({
     }
 
     try {
-      saveStoredBlueprintReport({
+      const result = await submitBlueprintReportAction({
         blueprintId: blueprint.id,
         blueprintTitle: blueprint.title,
         blueprintAuthor: blueprint.author,
@@ -105,10 +107,14 @@ function BlueprintReportForm({
         details: details.trim(),
         reporter: reporter.trim() || "anonymous",
       });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       onReported();
     } catch (err) {
       console.error(err);
-      setError("Could not save this report. Local storage may be full.");
+      setError("Could not save this report in Neon.");
     }
   }
 
@@ -157,7 +163,7 @@ function BlueprintUpdateForm({
 
   const stringError = useMemo(() => validateBlueprintString(blueprintString), [blueprintString]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
@@ -175,13 +181,17 @@ function BlueprintUpdateForm({
     setSaving(true);
 
     try {
-      const updatedBlueprint = postStoredBlueprintUpdate(blueprint.id, changes, blueprintString);
-      onBlueprintUpdated(updatedBlueprint);
+      const result = await postBlueprintUpdateAction({ blueprintId: blueprint.id, changes, blueprintString });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      onBlueprintUpdated(result.blueprint);
       setChanges("");
-      setBlueprintString(updatedBlueprint.blueprintString);
+      setBlueprintString(result.blueprint.blueprintString);
     } catch (err) {
       console.error(err);
-      setError("Could not post this update. The string may be too large for local storage.");
+      setError("Could not post this update in Neon.");
     } finally {
       setSaving(false);
     }
@@ -209,45 +219,34 @@ function BlueprintUpdateForm({
   );
 }
 
-export function LocalBlueprintDetail({ id }: { id: string }) {
-  const [blueprint, setBlueprint] = useState<StoredBlueprint | null | undefined>(undefined);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setBlueprint(getStoredBlueprint(id));
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [id]);
-
-  if (blueprint === undefined) {
-    return <main className="detail-page"><section className="empty-library-panel"><strong>Loading blueprint...</strong></section></main>;
-  }
-
-  if (!blueprint) {
-    return (
-      <main className="detail-page">
-        <section className="empty-library-panel">
-          <strong>Blueprint not found</strong>
-          <p>This blueprint is not saved in this browser.</p>
-          <Link href="/browse">Back to browse</Link>
-        </section>
-      </main>
-    );
-  }
-
-  return <LoadedBlueprintDetail blueprint={blueprint} onBlueprintUpdated={setBlueprint} />;
+export function DatabaseBlueprintDetail({ blueprint }: { blueprint: StoredBlueprint & Partial<BlueprintStats> }) {
+  const [currentBlueprint, setCurrentBlueprint] = useState<StoredBlueprint>(blueprint);
+  return (
+    <LoadedBlueprintDetail
+      blueprint={currentBlueprint}
+      views={blueprint.views ?? 0}
+      copies={blueprint.copies ?? 0}
+      likes={blueprint.likes ?? 0}
+      onBlueprintUpdated={setCurrentBlueprint}
+    />
+  );
 }
 
 function LoadedBlueprintDetail({
   blueprint,
+  views,
+  copies,
+  likes,
   onBlueprintUpdated,
 }: {
   blueprint: StoredBlueprint;
+  views?: number | string;
+  copies?: number | string;
+  likes?: number;
   onBlueprintUpdated?: (blueprint: StoredBlueprint) => void;
 }) {
   const metrics = useMemo(() => getBlueprintMetrics(blueprint.blueprintString), [blueprint.blueprintString]);
-  return <BlueprintDetailView blueprint={blueprint} entityCount={metrics.entityCount} footprint={metrics.footprint} onBlueprintUpdated={onBlueprintUpdated} />;
+  return <BlueprintDetailView blueprint={blueprint} views={views} copies={copies} likes={likes} entityCount={metrics.entityCount} footprint={metrics.footprint} onBlueprintUpdated={onBlueprintUpdated} />;
 }
 
 export function BlueprintDetailView({
@@ -260,8 +259,8 @@ export function BlueprintDetailView({
   onBlueprintUpdated,
 }: {
   blueprint: StoredBlueprint;
-  views?: string;
-  copies?: string;
+  views?: string | number;
+  copies?: string | number;
   likes?: number;
   entityCount?: string;
   footprint?: string;
@@ -269,31 +268,32 @@ export function BlueprintDetailView({
 }) {
   const initialViewCount = parseStatCount(views);
   const initialCopyCount = parseStatCount(copies);
-  const [engagementStats, setEngagementStats] = useState(() => ({ views: initialViewCount, copies: initialCopyCount }));
+  const initialLikeCount = normalizePositiveInteger(likes);
+  const [engagementStats, setEngagementStats] = useState(() => ({ views: initialViewCount, copies: initialCopyCount, likes: initialLikeCount }));
   const viewCountedBlueprintIdRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("blueprint");
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
   useEffect(() => {
-    function refreshEngagementStats() {
-      setEngagementStats(readBlueprintEngagementState(blueprint.id, initialViewCount, initialCopyCount));
-    }
+    let active = true;
 
     if (viewCountedBlueprintIdRef.current !== blueprint.id) {
       viewCountedBlueprintIdRef.current = blueprint.id;
-      setEngagementStats(incrementBlueprintViewCount(blueprint.id, initialViewCount, initialCopyCount));
-    } else {
-      refreshEngagementStats();
+      incrementBlueprintViewAction(blueprint.id, {
+        views: initialViewCount,
+        copies: initialCopyCount,
+        likes: initialLikeCount,
+      }).then((stats) => {
+        if (active) setEngagementStats(stats);
+      }).catch((error) => {
+        console.error("Could not record blueprint view", error);
+      });
     }
 
-    window.addEventListener("storage", refreshEngagementStats);
-    window.addEventListener("factorio-library:blueprint-engagement-updated", refreshEngagementStats);
-
     return () => {
-      window.removeEventListener("storage", refreshEngagementStats);
-      window.removeEventListener("factorio-library:blueprint-engagement-updated", refreshEngagementStats);
+      active = false;
     };
-  }, [blueprint.id, initialViewCount, initialCopyCount]);
+  }, [blueprint.id, initialViewCount, initialCopyCount, initialLikeCount]);
 
   useEffect(() => {
     if (!isUpdateModalOpen) return;
@@ -464,7 +464,7 @@ export function BlueprintDetailView({
                     </div>
                     <time dateTime={version.createdAt}>{formatDateTime(version.createdAt)}</time>
                     <p>{version.changes}</p>
-                    {version.blueprintString ? <CopyBlueprintButton blueprintString={version.blueprintString} blueprintId={blueprint.id} initialBlueprintCopies={initialCopyCount} /> : <em>Original blueprint string is not available for older local updates.</em>}
+                    {version.blueprintString ? <CopyBlueprintButton blueprintString={version.blueprintString} blueprintId={blueprint.id} initialBlueprintViews={engagementStats.views} initialBlueprintCopies={engagementStats.copies} initialBlueprintLikes={engagementStats.likes} /> : <em>Original blueprint string is not available for older database updates.</em>}
                   </li>
                 ))}
               </ol>
@@ -492,7 +492,7 @@ export function BlueprintDetailView({
 
         <aside className="detail-sidebar">
           <section className="copy-panel">
-            <CopyBlueprintButton blueprintString={blueprint.blueprintString} blueprintId={blueprint.id} initialBlueprintCopies={initialCopyCount} />
+            <CopyBlueprintButton blueprintString={blueprint.blueprintString} blueprintId={blueprint.id} initialBlueprintViews={engagementStats.views} initialBlueprintCopies={engagementStats.copies} initialBlueprintLikes={engagementStats.likes} />
             <code>{blueprint.blueprintString}</code>
           </section>
 

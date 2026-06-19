@@ -1,7 +1,4 @@
-"use client";
-
-import { useSyncExternalStore } from "react";
-import { readBlueprintCopyCount, readStoredBlueprints } from "@/lib/blueprints";
+import { getArchiveStats } from "@/lib/blueprint-db";
 
 function StatusIcon({ type }: { type: "cube" | "copy" | "layers" }) {
   if (type === "copy") {
@@ -34,59 +31,14 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-type ArchiveStats = {
-  blueprints: number;
-  copies: number;
-  categories: number;
-};
-
-const emptyStats: ArchiveStats = {
-  blueprints: 0,
-  copies: 0,
-  categories: 0,
-};
-
-function readArchiveStats(): ArchiveStats {
-  const blueprints = readStoredBlueprints();
-  const categoryCount = new Set(blueprints.map((blueprint) => blueprint.category).filter(Boolean)).size;
-
-  return {
-    blueprints: blueprints.length,
-    copies: readBlueprintCopyCount(),
-    categories: categoryCount,
-  };
-}
-
-function getStatsSnapshot() {
-  return JSON.stringify(readArchiveStats());
-}
-
-function getServerStatsSnapshot() {
-  return JSON.stringify(emptyStats);
-}
-
-function subscribeToStatsUpdates(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("factorio-library:blueprints-updated", onStoreChange);
-  window.addEventListener("factorio-library:blueprint-copies-updated", onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("factorio-library:blueprints-updated", onStoreChange);
-    window.removeEventListener("factorio-library:blueprint-copies-updated", onStoreChange);
-  };
-}
-
-export function HomeArchiveStatus() {
-  const stats = JSON.parse(
-    useSyncExternalStore(subscribeToStatsUpdates, getStatsSnapshot, getServerStatsSnapshot),
-  ) as ArchiveStats;
+export async function HomeArchiveStatus() {
+  const stats = await getArchiveStats();
 
   return (
     <aside className="archive-status" aria-label="Archive status">
       <div className="status-header">
         <span className="status-title"><b aria-hidden="true">ϟ</b> Archive status</span>
-        <span className="status-online"><i /> Online</span>
+        <span className="status-online"><i /> Neon online</span>
       </div>
       <dl>
         <div>
