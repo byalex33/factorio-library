@@ -85,6 +85,10 @@ function getTexture(path: string, x = 0, y = 0, w = 0, h = 0): Texture {
     return t
 }
 
+async function waitForTextures(): Promise<void> {
+    await Promise.all([...started.values()])
+}
+
 export default {
     debug,
     BPC,
@@ -93,5 +97,6 @@ export default {
     bp,
     actions,
     getTexture,
+    waitForTextures,
     logger,
 }

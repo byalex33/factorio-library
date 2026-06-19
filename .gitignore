@@ -42,3 +42,8 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# locally generated Factorio sprite assets (do not commit or redistribute)
+/public/data/__*/
+/public/data/.factorio-sprites-manifest.json
+/public/data/factorio-sprites-manifest.json

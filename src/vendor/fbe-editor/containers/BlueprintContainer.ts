@@ -179,9 +179,10 @@ export class BlueprintContainer extends Container {
                 this.scale.set(t.a, t.d)
             }
         }
-        G.app.ticker.add(update)
+        const ticker = G.app.ticker
+        ticker.add(update)
         this.on('destroyed', () => {
-            G.app.ticker.remove(update)
+            ticker.remove(update)
         })
 
         this.on('pointerover', () => {

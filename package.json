@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sprites:local": "node scripts/build-local-factorio-sprites.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.6",

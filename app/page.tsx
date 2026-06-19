@@ -8,6 +8,12 @@ const categories = [
   { name: "Power", detail: "Nuclear & solar", icon: "ϟ" },
 ];
 
+const stats = [
+  { value: 12480, display: "12,480", label: "blueprints" },
+  { value: 2300000, display: "2.3M", label: "copies" },
+  { value: 14, display: "14", label: "categories" },
+];
+
 function SearchIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6 fill-none stroke-current" strokeWidth="2">
@@ -84,18 +90,14 @@ export default function Home() {
           </div>
 
           <dl className="hero-stats">
-            <div>
-              <dt>12,480</dt>
-              <dd>blueprints</dd>
-            </div>
-            <div>
-              <dt>2.3M</dt>
-              <dd>copies</dd>
-            </div>
-            <div>
-              <dt>14</dt>
-              <dd>categories</dd>
-            </div>
+            {stats.map((stat) => (
+              <div key={stat.label}>
+                <dt>
+                  <data value={stat.value}>{stat.display}</data>
+                </dt>
+                <dd>{stat.label}</dd>
+              </div>
+            ))}
           </dl>
         </div>
       </section>
