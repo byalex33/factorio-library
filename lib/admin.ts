@@ -13,7 +13,7 @@ function hasAdminRole(metadata: unknown) {
 }
 
 function getConfiguredAdminEmails() {
-  return (process.env.ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+  return (process.env.ADMIN_EMAILS || "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
