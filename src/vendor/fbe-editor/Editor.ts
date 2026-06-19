@@ -22,8 +22,24 @@ import { UIContainer } from './UI/UIContainer'
 import { Dialog } from './UI/controls/Dialog'
 import { ActionRegistry, MouseButton } from './actions'
 
+export interface EditorInitOptions {
+    previewOnly?: boolean
+    width?: number
+    height?: number
+}
+
 export class Editor {
-    public async init(canvas: HTMLCanvasElement, logger?: Logger): Promise<void> {
+    private app?: Application
+    private previewOnly = false
+    private onWindowResize?: () => void
+
+    public async init(
+        canvas: HTMLCanvasElement,
+        logger?: Logger,
+        options: EditorInitOptions = {}
+    ): Promise<void> {
+        this.previewOnly = options.previewOnly ?? false
+
         setBasisTranscoderPath({ jsUrl: basisTranscoderJS, wasmUrl: basisTranscoderWASM })
 
         TextureSource.defaultOptions.scaleMode = 'linear'
@@ -34,6 +50,8 @@ export class Editor {
         }
 
         const app = new Application()
+        const width = options.width ?? window.innerWidth
+        const height = options.height ?? window.innerHeight
 
         await Promise.all([
             fetch('/data/data.json')
@@ -41,7 +59,9 @@ export class Editor {
                 .then(modules => loadData(modules)),
             app.init({
                 canvas,
-                preference: 'webgpu',
+                preference: this.previewOnly ? 'webgl' : 'webgpu',
+                width,
+                height,
                 resolution: window.devicePixelRatio,
                 autoDensity: true,
                 skipExtensionImports: true,
@@ -52,24 +72,34 @@ export class Editor {
             Assets.init(),
         ])
 
+        this.app = app
         G.app = app
 
-        G.app.renderer.resize(window.innerWidth, window.innerHeight)
-        window.addEventListener(
-            'resize',
-            () => G.app.renderer.resize(window.innerWidth, window.innerHeight),
-            false
-        )
-
-        this.initActions()
+        if (this.previewOnly) {
+            G.actions = new ActionRegistry({})
+        } else {
+            this.onWindowResize = () =>
+                G.app.renderer.resize(window.innerWidth, window.innerHeight)
+            window.addEventListener('resize', this.onWindowResize, false)
+            this.initActions()
+        }
 
         G.bp = new Blueprint()
         G.BPC = new BlueprintContainer(G.bp)
+        if (this.previewOnly) {
+            G.BPC.eventMode = 'none'
+        }
         G.app.stage.addChild(G.BPC)
 
-        G.UI = new UIContainer()
-        G.app.stage.addChild(G.UI)
-        G.UI.showDebuggingLayer = G.debug
+        if (this.previewOnly) {
+            G.UI = {
+                updateEntityInfoPanel: () => undefined,
+            } as UIContainer
+        } else {
+            G.UI = new UIContainer()
+            G.app.stage.addChild(G.UI)
+            G.UI.showDebuggingLayer = G.debug
+        }
     }
 
     public get moveSpeed(): number {
@@ -150,10 +180,36 @@ export class Editor {
         G.bp = bp
 
         G.BPC = new BlueprintContainer(bp)
+        if (this.previewOnly) {
+            G.BPC.eventMode = 'none'
+        }
         G.BPC.initBP()
         Dialog.closeAll()
         G.app.stage.addChildAt(G.BPC, i)
         last.destroy()
+    }
+
+    public resize(width: number, height: number): void {
+        if (!this.app || width <= 0 || height <= 0) return
+
+        this.app.renderer.resize(width, height)
+        G.BPC.centerViewport()
+    }
+
+    public async waitForTextures(): Promise<void> {
+        await G.waitForTextures()
+    }
+
+    public destroy(): void {
+        if (this.onWindowResize) {
+            window.removeEventListener('resize', this.onWindowResize, false)
+            this.onWindowResize = undefined
+        }
+
+        if (this.app) {
+            this.app.destroy(false, { children: true })
+            this.app = undefined
+        }
     }
 
     private initActions(): void {
