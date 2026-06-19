@@ -96,7 +96,13 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div>
         <Logo />
-        <p>Unofficial community project. Not affiliated with Wube Software.</p>
+        <p>
+          Unofficial community project. Not affiliated with Wube Software. Open source on{" "}
+          <a href="https://github.com/byalex33/factorio-library" target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          .
+        </p>
       </div>
       <div className="flex flex-wrap gap-5">
         {navItems.map((item) => (

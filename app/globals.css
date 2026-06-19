@@ -56,12 +56,18 @@ input {
 }
 
 .site-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(10, 11, 7, 0.97);
   backdrop-filter: blur(16px);
+}
+
+.site-content {
+  padding-top: 68px;
 }
 
 .site-header-inner {
@@ -625,6 +631,15 @@ input {
   font-size: 16px;
 }
 
+.home-recent-section .blueprint-grid-list,
+.home-recent-section .empty-library-panel {
+  margin-top: 18px;
+}
+
+.home-recent-section .empty-library-panel {
+  min-height: 250px;
+}
+
 .site-footer {
   width: min(100% - 56px, 1180px);
   margin: auto auto 0;
@@ -719,6 +734,10 @@ input {
 
   .site-logo-tagline {
     display: none;
+  }
+
+  .site-content {
+    padding-top: 64px;
   }
 
   .sign-in-button {
@@ -1024,6 +1043,7 @@ input {
 }
 
 .blueprint-card {
+  position: relative;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.11);
@@ -1033,9 +1053,17 @@ input {
   transition: transform 160ms ease, border-color 160ms ease;
 }
 
-.blueprint-card:hover {
+.blueprint-card:hover,
+.blueprint-card:focus-within {
   transform: translateY(-3px);
   border-color: rgba(255, 155, 28, 0.35);
+}
+
+.blueprint-card-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
 }
 
 .blueprint-card-preview {
@@ -1219,6 +1247,84 @@ input {
   height: 15px;
 }
 
+.blueprint-like-count {
+  color: #ff5c6f;
+}
+
+.blueprint-like-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: #d8d4cb;
+  background: rgba(16, 17, 12, 0.86);
+  font-weight: 800;
+  transition: transform 150ms ease, border-color 150ms ease, color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.blueprint-like-button:hover,
+.blueprint-like-button:focus-visible {
+  border-color: rgba(255, 75, 95, 0.65);
+  color: #ff5c6f;
+  transform: translateY(-1px);
+}
+
+.blueprint-like-button:focus-visible {
+  outline: 2px solid rgba(255, 75, 95, 0.36);
+  outline-offset: 2px;
+}
+
+.blueprint-like-button.liked {
+  border-color: rgba(255, 75, 95, 0.72);
+  color: #ff4058;
+  background: rgba(255, 64, 88, 0.13);
+  box-shadow: 0 10px 24px rgba(255, 42, 72, 0.14);
+}
+
+.blueprint-like-button .heart-icon {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 0 8px rgba(255, 64, 88, 0.18));
+}
+
+.blueprint-like-button-card {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 12px;
+}
+
+.blueprint-like-button-detail-stat {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  line-height: 1;
+}
+
+.blueprint-like-button-detail-stat:hover,
+.blueprint-like-button-detail-stat:focus-visible,
+.blueprint-like-button-detail-stat.liked {
+  color: #ff4058;
+  background: transparent;
+  box-shadow: none;
+}
+
+.blueprint-like-button-detail-stat .heart-icon {
+  width: 25px;
+  height: 25px;
+}
+
 .detail-page {
   max-width: 1280px;
   padding-top: 30px;
@@ -1308,8 +1414,12 @@ input {
   line-height: 1;
 }
 
-.detail-stats > div:last-child dt {
+.detail-stats > div:nth-child(2) dt {
   color: #ff961a;
+}
+
+.detail-stats .detail-like-stat dt {
+  color: #ff4058;
 }
 
 .detail-stats dd {
@@ -1322,6 +1432,11 @@ input {
 .detail-stats svg {
   width: 15px;
   height: 15px;
+}
+
+.detail-stats .detail-like-stat svg {
+  width: 25px;
+  height: 25px;
 }
 
 .detail-layout {
