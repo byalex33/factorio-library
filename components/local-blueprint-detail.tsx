@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BlueprintDiagram, CopiesIcon, EyeIcon } from "@/components/blueprint-visuals";
+import { CopiesIcon, EyeIcon } from "@/components/blueprint-visuals";
 import { CopyBlueprintButton } from "@/components/copy-blueprint-button";
+import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
 import { getStoredBlueprint, type StoredBlueprint } from "@/lib/blueprints";
 
 export function LocalBlueprintDetail({ id }: { id: string }) {
@@ -84,9 +85,9 @@ export function LocalBlueprintDetail({ id }: { id: string }) {
           </div>
 
           <div className="detail-preview">
-            <BlueprintDiagram large />
+            <BlueprintViewer blueprintString={blueprint.blueprintString} />
             <footer>
-              <span>▦ Generated preview placeholder</span>
+              <span>▦ Viewer-only blueprint preview</span>
             </footer>
           </div>
         </section>
