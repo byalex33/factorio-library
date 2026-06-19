@@ -16,6 +16,15 @@ export function CopiesIcon() {
   );
 }
 
+export function UserIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth="1.8">
+      <circle cx="12" cy="7" r="3.2" />
+      <path d="M5.5 21v-1.6a6.5 6.5 0 0 1 13 0V21" />
+    </svg>
+  );
+}
+
 export function BlueprintDiagram({ large = false }: { large?: boolean }) {
   return (
     <div className={`blueprint-diagram ${large ? "blueprint-diagram-large" : ""}`} role="img" aria-label="Blueprint diagram preview">

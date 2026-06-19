@@ -1,17 +1,40 @@
+export type GameVersion = (typeof gameVersions)[number];
+
+export type StoredBlueprintUpdate = {
+  id: string;
+  changes: string;
+  blueprintString: string;
+  createdAt: string;
+};
+
 export type StoredBlueprint = {
   id: string;
   title: string;
   description: string;
   category: string;
-  gameVersion: string;
+  gameVersion: GameVersion;
   tags: string[];
   blueprintString: string;
   author: string;
   createdAt: string;
   updatedAt: string;
+  updates: StoredBlueprintUpdate[];
+};
+
+export type StoredBlueprintReport = {
+  id: string;
+  blueprintId: string;
+  blueprintTitle: string;
+  blueprintAuthor: string;
+  reason: string;
+  details: string;
+  reporter: string;
+  createdAt: string;
 };
 
 export const BLUEPRINT_STORAGE_KEY = "factorio-library.blueprints.v1";
+export const BLUEPRINT_REPORT_STORAGE_KEY = "factorio-library.blueprint-reports.v1";
+export const BLUEPRINT_COPY_COUNT_STORAGE_KEY = "factorio-library.blueprint-copy-count.v1";
 const MAX_STORED_BLUEPRINTS = 100;
 const MAX_BLUEPRINT_STRING_LENGTH = 2_000_000;
 
@@ -29,6 +52,9 @@ export const blueprintCategories = [
   "Space Age",
   "Other",
 ];
+
+export const gameVersions = ["1.0.0", "2.0.0"] as const;
+const DEFAULT_GAME_VERSION: GameVersion = "2.0.0";
 
 export function makeBlueprintId(title: string) {
   const slug = title
@@ -49,6 +75,10 @@ export function parseTags(value: string) {
     .slice(0, 12);
 }
 
+export function formatUsername(value: string) {
+  return value.trim().replace(/^@+/, "") || "factory-builder";
+}
+
 export function validateBlueprintString(value: string) {
   const blueprint = value.trim();
 
@@ -66,6 +96,45 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function asTrimmedString(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function normalizeGameVersion(value: unknown): GameVersion {
+  const gameVersion = asTrimmedString(value, 30);
+  return gameVersions.includes(gameVersion as GameVersion) ? (gameVersion as GameVersion) : DEFAULT_GAME_VERSION;
+}
+
+function normalizeStoredBlueprintUpdate(value: unknown): StoredBlueprintUpdate | null {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const id = asTrimmedString(record.id, 80);
+  const changes = asTrimmedString(record.changes, 1_000);
+  const blueprintString = asTrimmedString(record.blueprintString, MAX_BLUEPRINT_STRING_LENGTH);
+  const createdAt = asTrimmedString(record.createdAt, 40);
+  const normalizedCreatedAt = Number.isNaN(Date.parse(createdAt)) ? new Date().toISOString() : createdAt;
+
+  if (!id || !changes || validateBlueprintString(blueprintString)) return null;
+
+  return { id, changes, blueprintString, createdAt: normalizedCreatedAt };
+}
+
+function normalizeStoredBlueprintReport(value: unknown): StoredBlueprintReport | null {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const id = asTrimmedString(record.id, 80);
+  const blueprintId = asTrimmedString(record.blueprintId, 120);
+  const blueprintTitle = asTrimmedString(record.blueprintTitle, 90);
+  const blueprintAuthor = formatUsername(asTrimmedString(record.blueprintAuthor, 80) || "unknown");
+  const reason = asTrimmedString(record.reason, 80);
+  const details = asTrimmedString(record.details, 1_000);
+  const reporter = asTrimmedString(record.reporter, 120) || "anonymous";
+  const createdAt = asTrimmedString(record.createdAt, 40);
+  const normalizedCreatedAt = Number.isNaN(Date.parse(createdAt)) ? new Date().toISOString() : createdAt;
+
+  if (!id || !blueprintId || !blueprintTitle || !reason) return null;
+
+  return { id, blueprintId, blueprintTitle, blueprintAuthor, reason, details, reporter, createdAt: normalizedCreatedAt };
 }
 
 function normalizeStoredBlueprint(value: unknown): StoredBlueprint | null {
@@ -89,7 +158,7 @@ function normalizeStoredBlueprint(value: unknown): StoredBlueprint | null {
     title,
     description: asTrimmedString(record.description, 700),
     category: blueprintCategories.includes(normalizedCategory) ? normalizedCategory : "Other",
-    gameVersion: asTrimmedString(record.gameVersion, 30) || "Unknown",
+    gameVersion: normalizeGameVersion(record.gameVersion),
     tags: Array.isArray(record.tags)
       ? record.tags
           .map((tag) => asTrimmedString(tag, 40))
@@ -97,9 +166,15 @@ function normalizeStoredBlueprint(value: unknown): StoredBlueprint | null {
           .slice(0, 12)
       : [],
     blueprintString,
-    author: asTrimmedString(record.author, 80) || "@factory-builder",
+    author: formatUsername(asTrimmedString(record.author, 80) || "factory-builder"),
     createdAt: normalizedCreatedAt,
     updatedAt: normalizedUpdatedAt,
+    updates: Array.isArray(record.updates)
+      ? record.updates
+          .map(normalizeStoredBlueprintUpdate)
+          .filter((update): update is StoredBlueprintUpdate => Boolean(update))
+          .slice(0, 50)
+      : [],
   };
 }
 
@@ -126,8 +201,64 @@ export function writeStoredBlueprints(blueprints: StoredBlueprint[]) {
     .filter((blueprint): blueprint is StoredBlueprint => Boolean(blueprint))
     .slice(0, MAX_STORED_BLUEPRINTS);
 
-  window.localStorage.setItem(BLUEPRINT_STORAGE_KEY, JSON.stringify(normalized));
+  try {
+    window.localStorage.setItem(BLUEPRINT_STORAGE_KEY, JSON.stringify(normalized));
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      throw new Error("Browser storage is full. Delete some blueprints to free space.");
+    }
+    throw err;
+  }
   window.dispatchEvent(new Event("factorio-library:blueprints-updated"));
+}
+
+export function readStoredBlueprintReports(): StoredBlueprintReport[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(BLUEPRINT_REPORT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.map(normalizeStoredBlueprintReport).filter((report): report is StoredBlueprintReport => Boolean(report))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeStoredBlueprintReports(reports: StoredBlueprintReport[]) {
+  if (typeof window === "undefined") return;
+
+  const normalized = reports
+    .map(normalizeStoredBlueprintReport)
+    .filter((report): report is StoredBlueprintReport => Boolean(report))
+    .slice(0, 200);
+
+  try {
+    window.localStorage.setItem(BLUEPRINT_REPORT_STORAGE_KEY, JSON.stringify(normalized));
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      throw new Error("Browser storage is full. Cannot save this report.");
+    }
+    throw err;
+  }
+  window.dispatchEvent(new Event("factorio-library:blueprint-reports-updated"));
+}
+
+export function saveStoredBlueprintReport(report: Omit<StoredBlueprintReport, "id" | "createdAt">) {
+  const storedReport: StoredBlueprintReport = {
+    ...report,
+    id: `report-${Date.now().toString(36)}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  writeStoredBlueprintReports([storedReport, ...readStoredBlueprintReports()]);
+  return storedReport;
+}
+
+export function deleteStoredBlueprintReport(id: string) {
+  writeStoredBlueprintReports(readStoredBlueprintReports().filter((report) => report.id !== id));
 }
 
 export function getStoredBlueprint(id: string) {
@@ -137,4 +268,49 @@ export function getStoredBlueprint(id: string) {
 export function saveStoredBlueprint(blueprint: StoredBlueprint) {
   const blueprints = readStoredBlueprints().filter((stored) => stored.id !== blueprint.id);
   writeStoredBlueprints([blueprint, ...blueprints]);
+}
+
+export function readBlueprintCopyCount() {
+  if (typeof window === "undefined") return 0;
+
+  const count = Number(window.localStorage.getItem(BLUEPRINT_COPY_COUNT_STORAGE_KEY));
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+export function incrementBlueprintCopyCount() {
+  if (typeof window === "undefined") return 0;
+
+  const nextCount = readBlueprintCopyCount() + 1;
+  window.localStorage.setItem(BLUEPRINT_COPY_COUNT_STORAGE_KEY, String(nextCount));
+  window.dispatchEvent(new Event("factorio-library:blueprint-copies-updated"));
+  return nextCount;
+}
+
+export function postStoredBlueprintUpdate(id: string, changes: string, blueprintString: string) {
+  const blueprint = getStoredBlueprint(id);
+  if (!blueprint) throw new Error("Blueprint not found");
+
+  if (!changes.trim()) throw new Error("Describe what changed in this update.");
+
+  const validationError = validateBlueprintString(blueprintString);
+  if (validationError) throw new Error(validationError);
+
+  const now = new Date().toISOString();
+  const updatedBlueprint: StoredBlueprint = {
+    ...blueprint,
+    blueprintString: blueprintString.trim(),
+    updatedAt: now,
+    updates: [
+      {
+        id: `update-${Date.now().toString(36)}`,
+        changes: changes.trim(),
+        blueprintString: blueprintString.trim(),
+        createdAt: now,
+      },
+      ...blueprint.updates,
+    ].slice(0, 50),
+  };
+
+  saveStoredBlueprint(updatedBlueprint);
+  return updatedBlueprint;
 }

@@ -19,12 +19,7 @@ export default async function UploadPage() {
 
       <Panel className="mt-10 p-6">
         {user && handle ? (
-          <>
-            <p className="mb-6 font-mono text-xs uppercase tracking-[0.18em] text-stone-500">
-              Posting as <span className="text-factory-amber">{handle}</span>
-            </p>
-            <UploadBlueprintForm author={handle} />
-          </>
+          <UploadBlueprintForm author={handle} />
         ) : (
           <div className="empty-library-panel compact-empty-panel">
             <strong>Sign in required</strong>

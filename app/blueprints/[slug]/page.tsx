@@ -13,12 +13,13 @@ export default async function BlueprintDetailPage({ params }: { params: Promise<
           title: "Direct-Insertion Smelting Block",
           description: "",
           category: "Smelting",
-          gameVersion: "Base game",
+          gameVersion: "2.0.0",
           tags: ["Smelting", "Direct Insertion", "Tileable", "Beaconed", "45/min", "Megabase"],
           blueprintString: demoBlueprintString,
           author: "GearGrinder",
           createdAt: "2024-11-12T00:00:00.000Z",
           updatedAt: "2026-05-08T00:00:00.000Z",
+          updates: [],
         }}
         views="88.4k"
         copies="21.0k"

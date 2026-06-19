@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   blueprintCategories,
+  gameVersions,
   makeBlueprintId,
   parseTags,
   saveStoredBlueprint,
   validateBlueprintString,
+  type GameVersion,
   type StoredBlueprint,
 } from "@/lib/blueprints";
 
@@ -16,7 +18,7 @@ export function UploadBlueprintForm({ author }: { author: string }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState(blueprintCategories[0]);
-  const [gameVersion, setGameVersion] = useState("2.0.x");
+  const [gameVersion, setGameVersion] = useState<GameVersion>("2.0.0");
   const [tags, setTags] = useState("");
   const [blueprintString, setBlueprintString] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export function UploadBlueprintForm({ author }: { author: string }) {
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     setError(null);
 
     const cleanTitle = title.trim();
@@ -48,12 +51,13 @@ export function UploadBlueprintForm({ author }: { author: string }) {
       title: cleanTitle,
       description: description.trim(),
       category,
-      gameVersion: gameVersion.trim() || "Unknown",
+      gameVersion,
       tags: parseTags(tags),
       blueprintString: blueprintString.trim(),
       author,
       createdAt: now,
       updatedAt: now,
+      updates: [],
     };
 
     try {
@@ -91,7 +95,11 @@ export function UploadBlueprintForm({ author }: { author: string }) {
       <div className="form-grid-two">
         <label>
           <span>Game version</span>
-          <input value={gameVersion} onChange={(event) => setGameVersion(event.target.value)} placeholder="2.0.x" maxLength={30} />
+          <select value={gameVersion} onChange={(event) => setGameVersion(event.target.value as GameVersion)}>
+            {gameVersions.map((version) => (
+              <option key={version} value={version}>{version}</option>
+            ))}
+          </select>
         </label>
         <label>
           <span>Tags</span>

@@ -137,7 +137,6 @@ function decode(str: string): Promise<Blueprint | Book> {
             reject(new CorruptedBlueprintStringError(e))
         }
     }).then(data => {
-        console.log(data)
         if (validate(data)) {
             if (data.blueprint_book === undefined) {
                 return new Blueprint(data.blueprint)

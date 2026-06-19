@@ -39,6 +39,7 @@ let actions: ActionRegistry
 
 const started = new Map<string, Promise<Texture>>()
 const textureCache = new Map<string, Texture>()
+const textureFailures = new Map<string, unknown>()
 
 let count = 0
 let T: number
@@ -72,6 +73,7 @@ function getTexture(path: string, x = 0, y = 0, w = 0, h = 0): Texture {
     }
     prom.then(
         bt => {
+            textureFailures.delete(key)
             t.source = bt.source
             t.frame.x = x
             t.frame.y = y
@@ -80,13 +82,25 @@ function getTexture(path: string, x = 0, y = 0, w = 0, h = 0): Texture {
             t.update()
             t.dynamic = false
         },
-        err => console.error(err)
+        err => {
+            textureFailures.set(key, err)
+            console.error(`Failed to load Factorio sprite: ${key}`, err)
+        }
     )
     return t
 }
 
 async function waitForTextures(): Promise<void> {
-    await Promise.all([...started.values()])
+    const results = await Promise.allSettled([...started.values()])
+    const rejectedCount = results.filter(result => result.status === 'rejected').length
+
+    if (rejectedCount > 0) {
+        console.warn(`${rejectedCount} Factorio sprite texture(s) failed to load. Continuing with missing-texture placeholders.`)
+    }
+}
+
+function getTextureFailures(): Map<string, unknown> {
+    return textureFailures
 }
 
 export default {
@@ -98,5 +112,6 @@ export default {
     actions,
     getTexture,
     waitForTextures,
+    getTextureFailures,
     logger,
 }
