@@ -36,8 +36,11 @@ export function Logo() {
       <span className="site-logo-mark">
         <CubeMark />
       </span>
-      <span className="site-logo-type">
-        Factorio <strong>Library</strong>
+      <span className="site-logo-copy">
+        <span className="site-logo-type">
+          Factorio <strong>Library</strong>
+        </span>
+        <small className="site-logo-tagline">Blueprint archive · v2.0</small>
       </span>
     </Link>
   );
@@ -65,7 +68,7 @@ export async function SiteHeader() {
           {user ? (
             <>
               {handle ? (
-                <Link href={`/u/${handle.slice(1)}`} className="user-handle">
+                <Link href={`/u/${encodeURIComponent(handle.slice(1))}`} className="user-handle">
                   {handle}
                 </Link>
               ) : null}

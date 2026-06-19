@@ -2,9 +2,17 @@ import Link from "next/link";
 import { PageShell } from "@/components/site-shell";
 import { EmptyState, Panel, SectionHeader } from "@/components/ui";
 
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export default async function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const handle = `@${decodeURIComponent(username)}`;
+  const handle = `@${safeDecode(username)}`;
 
   return (
     <PageShell>

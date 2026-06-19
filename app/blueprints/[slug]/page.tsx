@@ -1,5 +1,4 @@
-import { LocalBlueprintDetail } from "@/components/local-blueprint-detail";
-import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
+import { BlueprintDetailView, LocalBlueprintDetail } from "@/components/local-blueprint-detail";
 
 const demoBlueprintString = "0eJyN0MEKwjAMBuBXkZxbcJuK64N4EZFOgwbWdKSdc4y+ux0DEXbxEsgf8gUyQdP22AlxBDMBRXRgfjIFrW2wzdmJcEDZ3NH5nL5QAnkGsz+U9a6u97uqOh6LgwLkSJEwgDlPSzNeuXcNCphCAVuHWYtiOXReos76fKbzIa/N4gRvMFsFY65JwZ0Eb8ukTGpFln+Txb9k9SVtCOialvihnb09iVGXa7j6wpmlbl4k8awfaEUPT8zvS5eUPsYyePY=";
 
@@ -8,27 +7,24 @@ export default async function BlueprintDetailPage({ params }: { params: Promise<
 
   if (slug === "demo") {
     return (
-      <main className="detail-page">
-        <header className="detail-heading">
-          <div>
-            <div className="detail-kickers">
-              <span>Demo</span>
-              <span className="compatibility-badge">viewer-only</span>
-            </div>
-            <h1>Blueprint viewer demo</h1>
-            <p className="detail-description">
-              A placeholder blueprint string rendered with the isolated viewer component.
-            </p>
-          </div>
-        </header>
-
-        <section className="detail-preview">
-          <BlueprintViewer blueprintString={demoBlueprintString} />
-          <footer>
-            <span>▦ Viewer-only blueprint preview demo</span>
-          </footer>
-        </section>
-      </main>
+      <BlueprintDetailView
+        blueprint={{
+          id: "demo",
+          title: "Direct-Insertion Smelting Block",
+          description: "",
+          category: "Smelting",
+          gameVersion: "Base game",
+          tags: ["Smelting", "Direct Insertion", "Tileable", "Beaconed", "45/min", "Megabase"],
+          blueprintString: demoBlueprintString,
+          author: "GearGrinder",
+          createdAt: "2024-11-12T00:00:00.000Z",
+          updatedAt: "2026-05-08T00:00:00.000Z",
+        }}
+        views="88.4k"
+        copies="21.0k"
+        entityCount="312"
+        footprint="18 × 12"
+      />
     );
   }
 

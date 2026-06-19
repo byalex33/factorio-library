@@ -261,6 +261,31 @@ function renderSchematicBlueprintPreview(canvas: HTMLCanvasElement, blueprintStr
   }
 }
 
+function renderSchematicBlueprintPreviewHandle(
+  canvas: HTMLCanvasElement,
+  blueprintString: string,
+  spriteError?: unknown,
+): BlueprintPreviewHandle {
+  renderSchematicBlueprintPreview(canvas, blueprintString);
+
+  const resizeObserver = new ResizeObserver(() => {
+    try {
+      renderSchematicBlueprintPreview(canvas, blueprintString);
+    } catch (error) {
+      console.warn("Could not redraw schematic blueprint preview after resize.", error);
+    }
+  });
+  resizeObserver.observe(canvas.parentElement ?? canvas);
+
+  return {
+    mode: "schematic",
+    spriteError,
+    destroy: () => {
+      resizeObserver.disconnect();
+    },
+  };
+}
+
 export async function renderBlueprintPreview(
   canvas: HTMLCanvasElement,
   blueprintString: string,
@@ -279,11 +304,11 @@ export async function renderBlueprintPreview(
       canvas.style.display = "none";
 
       try {
-        renderSchematicBlueprintPreview(fallbackCanvas, blueprintString);
+        const fallbackPreview = renderSchematicBlueprintPreviewHandle(fallbackCanvas, blueprintString, spriteError);
         return {
-          mode: "schematic",
-          spriteError,
+          ...fallbackPreview,
           destroy: () => {
+            fallbackPreview.destroy();
             fallbackCanvas.remove();
             canvas.style.display = "";
           },
@@ -296,9 +321,5 @@ export async function renderBlueprintPreview(
     }
   }
 
-  renderSchematicBlueprintPreview(canvas, blueprintString);
-  return {
-    mode: "schematic",
-    destroy: () => undefined,
-  };
+  return renderSchematicBlueprintPreviewHandle(canvas, blueprintString);
 }

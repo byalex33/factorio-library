@@ -128,17 +128,26 @@ function resolveFactorioDataRoot(factorioPath) {
   return path.join(factorioPath, "data");
 }
 
+function safeJoin(root, ...segments) {
+  const resolvedRoot = path.resolve(root);
+  const resolvedPath = path.resolve(resolvedRoot, ...segments);
+  const relative = path.relative(resolvedRoot, resolvedPath);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
+  return resolvedPath;
+}
+
 function sourcePathForVirtualPath(dataRoot, virtualPath) {
   const match = virtualPath.match(/^__([a-z0-9_-]+)__\/(.+)$/i);
   if (!match) return null;
 
   const [, modName, relativePath] = match;
   const folderName = modPathAliases.get(modName) || modName;
-  return path.join(dataRoot, folderName, relativePath);
+  return safeJoin(dataRoot, folderName, relativePath);
 }
 
 function outputPathForVirtualPath(outRoot, virtualPath) {
-  return path.join(outRoot, virtualPath.replace(/\.png$/i, ".basis"));
+  return safeJoin(outRoot, virtualPath.replace(/\.png$/i, ".basis"));
 }
 
 function run(command, args) {
@@ -175,7 +184,7 @@ async function main() {
     const source = sourcePathForVirtualPath(dataRoot, virtualPath);
     const output = outputPathForVirtualPath(args.out, virtualPath);
 
-    if (!source || !existsSync(source)) {
+    if (!source || !output || !existsSync(source)) {
       missingSources.push({ virtualPath, source });
       continue;
     }

@@ -18,7 +18,7 @@ export function CopiesIcon() {
 
 export function BlueprintDiagram({ large = false }: { large?: boolean }) {
   return (
-    <div className={`blueprint-diagram ${large ? "blueprint-diagram-large" : ""}`} aria-label="Blueprint diagram preview">
+    <div className={`blueprint-diagram ${large ? "blueprint-diagram-large" : ""}`} role="img" aria-label="Blueprint diagram preview">
       <span className="diagram-machine diagram-machine-orange diagram-machine-a" />
       {large ? <span className="diagram-machine diagram-machine-orange diagram-machine-b" /> : null}
       <span className="diagram-machine diagram-machine-blue diagram-machine-c" />
