@@ -1,65 +1,130 @@
-import Image from "next/image";
+import Link from "next/link";
+
+const categories = [
+  { name: "Smelting", detail: "Furnaces & foundries", icon: "♨" },
+  { name: "Trains", detail: "Stations & networks", icon: "▰" },
+  { name: "Circuits", detail: "Logic & displays", icon: "⌁" },
+  { name: "Science", detail: "Labs & production", icon: "⬡" },
+  { name: "Power", detail: "Nuclear & solar", icon: "ϟ" },
+];
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6 fill-none stroke-current" strokeWidth="2">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m16 16 4.5 4.5" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth="1.8">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth="1.8">
+      <path d="M12 16V3m0 0L7.5 7.5M12 3l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="home-page">
+      <section className="home-hero">
+        <div className="hero-glow" />
+
+        <div className="hero-content">
+          <p className="hero-kicker">
+            <span aria-hidden="true">〽</span>
+            Community blueprint archive
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+          <h1 className="hero-title">
+            <span>Find and share</span>
+            <span>
+              <strong>Factorio</strong> blueprints
+            </span>
+          </h1>
+
+          <p className="hero-description">
+            Browse community-made builds for smelting, trains, circuits, science, power,
+            <br className="hidden sm:block" /> Space Age, and more.
+          </p>
+
+          <form action="/browse" className="hero-search">
+            <SearchIcon />
+            <input
+              type="search"
+              name="q"
+              aria-label="Search blueprints"
+              placeholder="Search blueprints — e.g. ‘red science 60/min’, ‘nuclear’, ‘balancer’"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button type="submit">Search</button>
+          </form>
+
+          <div className="hero-actions">
+            <Link href="/browse" className="primary-action">
+              <GridIcon />
+              Browse Blueprints
+            </Link>
+            <Link href="/upload" className="secondary-action">
+              <UploadIcon />
+              Upload Blueprint
+            </Link>
+          </div>
+
+          <dl className="hero-stats">
+            <div>
+              <dt>12,480</dt>
+              <dd>blueprints</dd>
+            </div>
+            <div>
+              <dt>2.3M</dt>
+              <dd>copies</dd>
+            </div>
+            <div>
+              <dt>14</dt>
+              <dd>categories</dd>
+            </div>
+          </dl>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="category-section" aria-labelledby="category-heading">
+        <div className="category-heading-row">
+          <h2 id="category-heading">Browse by category</h2>
+          <Link href="/browse">
+            All categories <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+
+        <div className="category-grid">
+          {categories.map((category) => (
+            <Link key={category.name} href="/browse" className="category-card">
+              <span className="category-icon" aria-hidden="true">
+                {category.icon}
+              </span>
+              <span>
+                <strong>{category.name}</strong>
+                <small>{category.detail}</small>
+              </span>
+              <span className="category-arrow" aria-hidden="true">
+                ↗
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
