@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
+import { isAdminUser } from "@/lib/admin";
 import { getUserHandle } from "@/lib/users";
 
 const navItems = [
@@ -30,7 +31,7 @@ function SignInIcon() {
   );
 }
 
-export function Logo() {
+export function Logo({ showTagline = true }: { showTagline?: boolean }) {
   return (
     <Link href="/" className="site-logo" aria-label="Factorio Library home">
       <span className="site-logo-mark">
@@ -40,7 +41,7 @@ export function Logo() {
         <span className="site-logo-type">
           Factorio <strong>Library</strong>
         </span>
-        <small className="site-logo-tagline">Blueprint archive · v2.0</small>
+        {showTagline ? <small className="site-logo-tagline">Blueprint archive · v2.0</small> : null}
       </span>
     </Link>
   );
@@ -49,18 +50,20 @@ export function Logo() {
 export async function SiteHeader() {
   const user = await currentUser();
   const handle = getUserHandle(user);
+  const isAdmin = isAdminUser(user);
 
   return (
     <header className="site-header">
       <div className="site-header-inner">
         <div className="site-header-left">
-          <Logo />
+          <Logo showTagline={false} />
           <nav aria-label="Main navigation">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 {item.label}
               </Link>
             ))}
+            {isAdmin ? <Link href="/admin">Admin</Link> : null}
           </nav>
         </div>
 
@@ -68,7 +71,7 @@ export async function SiteHeader() {
           {user ? (
             <>
               {handle ? (
-                <Link href={`/u/${encodeURIComponent(handle.slice(1))}`} className="user-handle">
+                <Link href={`/u/${encodeURIComponent(handle)}`} className="user-handle">
                   {handle}
                 </Link>
               ) : null}
@@ -101,7 +104,6 @@ export function SiteFooter() {
             {item.label}
           </Link>
         ))}
-        <Link href="/about">About</Link>
       </div>
     </footer>
   );

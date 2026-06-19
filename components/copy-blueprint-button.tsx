@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { incrementBlueprintCopyCount } from "@/lib/blueprints";
 
 export function CopyBlueprintButton({ blueprintString }: { blueprintString: string }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
@@ -8,6 +9,7 @@ export function CopyBlueprintButton({ blueprintString }: { blueprintString: stri
   async function copyBlueprint() {
     try {
       await navigator.clipboard.writeText(blueprintString);
+      incrementBlueprintCopyCount();
       setCopyState("copied");
     } catch (error) {
       console.error("Could not copy blueprint string", error);

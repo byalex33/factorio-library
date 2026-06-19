@@ -278,9 +278,10 @@ export class BlueprintContainer extends Container {
                 }
             }
 
-            G.app.ticker.add(panCb)
+            const ticker = G.app.ticker
+            ticker.add(panCb)
             this.on('destroyed', () => {
-                G.app.ticker.remove(panCb)
+                ticker.remove(panCb)
             })
         }
 

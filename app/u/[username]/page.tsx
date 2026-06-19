@@ -12,7 +12,7 @@ function safeDecode(value: string) {
 
 export default async function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const handle = `@${safeDecode(username)}`;
+  const handle = safeDecode(username).replace(/^@+/, "");
 
   return (
     <PageShell>

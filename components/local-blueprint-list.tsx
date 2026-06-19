@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BlueprintDiagram, CopiesIcon, EyeIcon } from "@/components/blueprint-visuals";
-import { readStoredBlueprints, type StoredBlueprint } from "@/lib/blueprints";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { UserIcon } from "@/components/blueprint-visuals";
+import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
+import { formatUsername, readStoredBlueprints, type StoredBlueprint } from "@/lib/blueprints";
 
 function useLocalBlueprints() {
   const [blueprints, setBlueprints] = useState<StoredBlueprint[]>([]);
@@ -29,9 +30,20 @@ function useLocalBlueprints() {
 export function LocalBlueprintList() {
   const blueprints = useLocalBlueprints();
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleQueryChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const value = event.target.value;
+    setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedQuery(value), 200);
+  }
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = debouncedQuery.trim().toLowerCase();
     if (!normalized) return blueprints;
 
     return blueprints.filter((blueprint) =>
@@ -40,12 +52,12 @@ export function LocalBlueprintList() {
         .toLowerCase()
         .includes(normalized),
     );
-  }, [blueprints, query]);
+  }, [blueprints, debouncedQuery]);
 
   return (
     <>
       <div className="browse-search-row">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your added blueprints" />
+        <input value={query} onChange={handleQueryChange} placeholder="Search your added blueprints" />
         <Link href="/upload">Add blueprint</Link>
       </div>
 
@@ -65,19 +77,17 @@ export function LocalBlueprintList() {
           {filtered.map((blueprint) => (
             <Link href={`/blueprints/${blueprint.id}`} className="blueprint-card" key={blueprint.id}>
               <div className="blueprint-card-preview">
-                <BlueprintDiagram />
+                <BlueprintViewer blueprintString={blueprint.blueprintString} className="blueprint-card-viewer" />
                 <span className="compatibility-badge">✓ {blueprint.gameVersion}</span>
               </div>
               <div className="blueprint-card-body">
                 <p>{blueprint.category}</p>
                 <h2>{blueprint.title}</h2>
                 <div className="blueprint-card-meta">
-                  <span>{blueprint.author}</span>
                   <span>{new Date(blueprint.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="blueprint-card-stats">
-                  <span><EyeIcon /> local</span>
-                  <span><CopiesIcon /> ready</span>
+                  <span><UserIcon /> {formatUsername(blueprint.author)}</span>
                 </div>
               </div>
             </Link>

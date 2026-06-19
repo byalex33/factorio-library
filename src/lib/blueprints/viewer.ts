@@ -1,4 +1,4 @@
-import { inflate } from "pako";
+import { deflate, inflate } from "pako";
 
 type BlueprintEntity = {
   entity_number?: number;
@@ -7,9 +7,11 @@ type BlueprintEntity = {
   direction?: number;
 };
 
+type BlueprintIcon = { index: number; signal: { name: string; type?: string } };
+
 type DecodedBlueprint = {
-  blueprint?: { entities?: BlueprintEntity[]; tiles?: { name: string; position: { x: number; y: number } }[] };
-  blueprint_book?: { blueprints?: DecodedBlueprint[] };
+  blueprint?: { entities?: BlueprintEntity[]; tiles?: { name: string; position: { x: number; y: number } }[]; icons?: BlueprintIcon[] };
+  blueprint_book?: { blueprints?: DecodedBlueprint[]; icons?: BlueprintIcon[] };
 };
 
 type PreviewMode = "sprites" | "schematic";
@@ -38,6 +40,46 @@ function decodeBlueprintString(blueprintString: string): DecodedBlueprint {
 
   const json = inflate(bytes, { to: "string" });
   return JSON.parse(json) as DecodedBlueprint;
+}
+
+function encodeBlueprintString(decoded: DecodedBlueprint) {
+  const bytes = deflate(JSON.stringify(decoded));
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return `0${btoa(binary)}`;
+}
+
+function placeholderIcon(index = 1): BlueprintIcon {
+  return { index, signal: { name: "signal-unknown", type: "virtual" } };
+}
+
+function sanitizeIconsForSpriteRenderer(value: DecodedBlueprint) {
+  // Book icons are decorative and optional in the vendored renderer schema.
+  // They can reference newer/unknown signals, so remove them before validation.
+  delete value.blueprint_book?.icons;
+
+  // Blueprint icons are required by the vendored schema. They are not needed for
+  // drawing entities, so normalize them to known virtual signals to avoid false
+  // "modded blueprint" failures caused only by icon metadata.
+  if (value.blueprint) {
+    const icons = value.blueprint.icons?.length ? value.blueprint.icons : [placeholderIcon()];
+    value.blueprint.icons = icons.slice(0, 4).map((icon, iconIndex) => placeholderIcon(icon.index || iconIndex + 1));
+  }
+
+  for (const entry of value.blueprint_book?.blueprints ?? []) {
+    sanitizeIconsForSpriteRenderer(entry);
+  }
+}
+
+function sanitizeBlueprintStringForSpriteRenderer(blueprintString: string) {
+  const decoded = decodeBlueprintString(blueprintString);
+  sanitizeIconsForSpriteRenderer(decoded);
+  return encodeBlueprintString(decoded);
 }
 
 function selectBlueprint(decoded: DecodedBlueprint): NonNullable<DecodedBlueprint["blueprint"]> {
@@ -122,7 +164,7 @@ async function renderSpriteBlueprintPreview(
       height: size.height,
     });
 
-    const blueprintOrBook = await getBlueprintOrBookFromSource(blueprintString);
+    const blueprintOrBook = await getBlueprintOrBookFromSource(sanitizeBlueprintStringForSpriteRenderer(blueprintString));
     const blueprint = blueprintOrBook instanceof Book
       ? blueprintOrBook.selectBlueprint()
       : blueprintOrBook;
