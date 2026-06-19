@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { createPortal } from "react-dom";
 import { inflate } from "pako";
 import { BlueprintLikeButton } from "@/components/blueprint-like-button";
-import { CopiesIcon, EyeIcon } from "@/components/blueprint-visuals";
+import { CopiesIcon, EyeIcon, formatBlueprintStatCount } from "@/components/blueprint-visuals";
 import { CopyBlueprintButton } from "@/components/copy-blueprint-button";
 import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
 import { getStoredBlueprint, incrementBlueprintViewCount, postStoredBlueprintUpdate, readBlueprintEngagementState, saveStoredBlueprintReport, validateBlueprintString, type StoredBlueprint } from "@/lib/blueprints";
@@ -49,10 +49,6 @@ function parseStatCount(value: string) {
 
   const multiplier = match[2] === "m" ? 1_000_000 : match[2] === "k" ? 1_000 : 1;
   return Math.max(0, Math.floor(Number(match[1]) * multiplier));
-}
-
-function formatStatCount(value: number) {
-  return new Intl.NumberFormat("en", { notation: value >= 1000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
 }
 
 function getBlueprintMetrics(blueprintString: string) {
@@ -418,11 +414,11 @@ export function BlueprintDetailView({
 
         <dl className="detail-stats">
           <div>
-            <dt>{formatStatCount(engagementStats.views)}</dt>
+            <dt>{formatBlueprintStatCount(engagementStats.views)}</dt>
             <dd><EyeIcon /> views</dd>
           </div>
           <div>
-            <dt>{formatStatCount(engagementStats.copies)}</dt>
+            <dt>{formatBlueprintStatCount(engagementStats.copies)}</dt>
             <dd><CopiesIcon /> copies</dd>
           </div>
           <div className="detail-like-stat">

@@ -23,7 +23,6 @@ export default async function BlueprintDetailPage({ params }: { params: Promise<
         }}
         views="88.4k"
         copies="21.0k"
-        likes={648}
         entityCount="312"
         footprint="18 × 12"
       />

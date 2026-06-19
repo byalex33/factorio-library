@@ -167,7 +167,7 @@ function normalizeCountRecord(value: unknown) {
   }
 
   return counts;
-};
+}
 
 function normalizeBlueprintLikeStore(value: unknown): BlueprintLikeStore {
   const record = asRecord(value);
