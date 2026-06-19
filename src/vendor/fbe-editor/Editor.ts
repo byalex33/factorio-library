@@ -206,10 +206,22 @@ export class Editor {
             this.onWindowResize = undefined
         }
 
-        if (this.app) {
-            this.app.destroy(false, { children: true })
-            this.app = undefined
+        const app = this.app
+        if (!app) return
+
+        this.app = undefined
+
+        // Pixi destroys application plugins (including the ticker) before the
+        // stage. BlueprintContainer cleanup removes a ticker callback, so stage
+        // children must be destroyed while those plugins are still alive.
+        const stageChildren = app.stage.removeChildren()
+        for (const child of stageChildren) {
+            if (!child.destroyed) {
+                child.destroy({ children: true })
+            }
         }
+
+        app.destroy(false, false)
     }
 
     private initActions(): void {
