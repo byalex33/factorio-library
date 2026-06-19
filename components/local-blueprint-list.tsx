@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BlueprintLikeCount } from "@/components/blueprint-like-count";
 import { UserIcon } from "@/components/blueprint-visuals";
 import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
 import { formatUsername, readStoredBlueprints, type StoredBlueprint } from "@/lib/blueprints";
@@ -27,10 +28,10 @@ function useLocalBlueprints() {
   return blueprints;
 }
 
-export function LocalBlueprintList() {
+export function LocalBlueprintList({ initialQuery = "" }: { initialQuery?: string }) {
   const blueprints = useLocalBlueprints();
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleQueryChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -75,22 +76,25 @@ export function LocalBlueprintList() {
       ) : (
         <section className="blueprint-grid-list" aria-label="Blueprint results">
           {filtered.map((blueprint) => (
-            <Link href={`/blueprints/${blueprint.id}`} className="blueprint-card" key={blueprint.id}>
-              <div className="blueprint-card-preview">
-                <BlueprintViewer blueprintString={blueprint.blueprintString} className="blueprint-card-viewer" />
-                <span className="compatibility-badge">✓ {blueprint.gameVersion}</span>
-              </div>
-              <div className="blueprint-card-body">
-                <p>{blueprint.category}</p>
-                <h2>{blueprint.title}</h2>
-                <div className="blueprint-card-meta">
-                  <span>{new Date(blueprint.createdAt).toLocaleDateString()}</span>
+            <article className="blueprint-card" key={blueprint.id}>
+              <Link href={`/blueprints/${blueprint.id}`} className="blueprint-card-link">
+                <div className="blueprint-card-preview">
+                  <BlueprintViewer blueprintString={blueprint.blueprintString} className="blueprint-card-viewer" />
+                  <span className="compatibility-badge">✓ {blueprint.gameVersion}</span>
                 </div>
-                <div className="blueprint-card-stats">
-                  <span><UserIcon /> {formatUsername(blueprint.author)}</span>
+                <div className="blueprint-card-body">
+                  <p>{blueprint.category}</p>
+                  <h2>{blueprint.title}</h2>
+                  <div className="blueprint-card-meta">
+                    <span>{new Date(blueprint.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="blueprint-card-stats">
+                    <span><UserIcon /> {formatUsername(blueprint.author)}</span>
+                    <BlueprintLikeCount blueprintId={blueprint.id} />
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </article>
           ))}
         </section>
       )}

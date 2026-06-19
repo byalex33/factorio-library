@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HomeArchiveStatus } from "@/components/home-archive-status";
+import { HomeRecentBlueprints } from "@/components/home-recent-blueprints";
 
 function SearchIcon() {
   return (
@@ -29,6 +30,7 @@ function UploadIcon() {
     </svg>
   );
 }
+
 
 export default function Home() {
   return (
@@ -82,6 +84,7 @@ export default function Home() {
         </div>
       </section>
 
+      <HomeRecentBlueprints />
     </main>
   );
 }

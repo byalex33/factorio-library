@@ -34,7 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ClerkProvider>
           <div className="relative flex min-h-screen flex-col overflow-x-hidden">
             <SiteHeader />
-            <div className="relative z-10 flex flex-1 flex-col">{children}</div>
+            <div className="site-content relative z-10 flex flex-1 flex-col">{children}</div>
             <SiteFooter />
           </div>
         </ClerkProvider>

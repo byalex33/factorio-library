@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { inflate } from "pako";
-import { CopiesIcon, EyeIcon } from "@/components/blueprint-visuals";
+import { BlueprintLikeButton } from "@/components/blueprint-like-button";
+import { CopiesIcon, EyeIcon, formatBlueprintStatCount } from "@/components/blueprint-visuals";
 import { CopyBlueprintButton } from "@/components/copy-blueprint-button";
 import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
-import { getStoredBlueprint, postStoredBlueprintUpdate, saveStoredBlueprintReport, validateBlueprintString, type StoredBlueprint } from "@/lib/blueprints";
+import { getStoredBlueprint, incrementBlueprintViewCount, postStoredBlueprintUpdate, readBlueprintEngagementState, saveStoredBlueprintReport, validateBlueprintString, type StoredBlueprint } from "@/lib/blueprints";
 
 type DetailIconName = "image" | "versions" | "changelog" | "author" | "game" | "calendar" | "history" | "cube" | "grid" | "flag";
 type DetailTab = "blueprint" | "versions" | "changelog";
@@ -39,6 +40,15 @@ function formatMonthYear(value: string) {
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
+}
+
+function parseStatCount(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/,/g, "");
+  const match = normalized.match(/^(\d+(?:\.\d+)?)([km])?$/);
+  if (!match) return 0;
+
+  const multiplier = match[2] === "m" ? 1_000_000 : match[2] === "k" ? 1_000 : 1;
+  return Math.max(0, Math.floor(Number(match[1]) * multiplier));
 }
 
 function getBlueprintMetrics(blueprintString: string) {
@@ -244,6 +254,7 @@ export function BlueprintDetailView({
   blueprint,
   views = "0",
   copies = "0",
+  likes = 0,
   entityCount = "—",
   footprint = "—",
   onBlueprintUpdated,
@@ -251,12 +262,38 @@ export function BlueprintDetailView({
   blueprint: StoredBlueprint;
   views?: string;
   copies?: string;
+  likes?: number;
   entityCount?: string;
   footprint?: string;
   onBlueprintUpdated?: (blueprint: StoredBlueprint) => void;
 }) {
+  const initialViewCount = parseStatCount(views);
+  const initialCopyCount = parseStatCount(copies);
+  const [engagementStats, setEngagementStats] = useState(() => ({ views: initialViewCount, copies: initialCopyCount }));
+  const viewCountedBlueprintIdRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("blueprint");
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  useEffect(() => {
+    function refreshEngagementStats() {
+      setEngagementStats(readBlueprintEngagementState(blueprint.id, initialViewCount, initialCopyCount));
+    }
+
+    if (viewCountedBlueprintIdRef.current !== blueprint.id) {
+      viewCountedBlueprintIdRef.current = blueprint.id;
+      setEngagementStats(incrementBlueprintViewCount(blueprint.id, initialViewCount, initialCopyCount));
+    } else {
+      refreshEngagementStats();
+    }
+
+    window.addEventListener("storage", refreshEngagementStats);
+    window.addEventListener("factorio-library:blueprint-engagement-updated", refreshEngagementStats);
+
+    return () => {
+      window.removeEventListener("storage", refreshEngagementStats);
+      window.removeEventListener("factorio-library:blueprint-engagement-updated", refreshEngagementStats);
+    };
+  }, [blueprint.id, initialViewCount, initialCopyCount]);
 
   useEffect(() => {
     if (!isUpdateModalOpen) return;
@@ -377,12 +414,16 @@ export function BlueprintDetailView({
 
         <dl className="detail-stats">
           <div>
-            <dt>{views}</dt>
+            <dt>{formatBlueprintStatCount(engagementStats.views)}</dt>
             <dd><EyeIcon /> views</dd>
           </div>
           <div>
-            <dt>{copies}</dt>
+            <dt>{formatBlueprintStatCount(engagementStats.copies)}</dt>
             <dd><CopiesIcon /> copies</dd>
+          </div>
+          <div className="detail-like-stat">
+            <dt><BlueprintLikeButton blueprintId={blueprint.id} blueprintTitle={blueprint.title} initialCount={likes} variant="detail-stat" /></dt>
+            <dd>likes</dd>
           </div>
         </dl>
       </header>
@@ -423,7 +464,7 @@ export function BlueprintDetailView({
                     </div>
                     <time dateTime={version.createdAt}>{formatDateTime(version.createdAt)}</time>
                     <p>{version.changes}</p>
-                    {version.blueprintString ? <CopyBlueprintButton blueprintString={version.blueprintString} /> : <em>Original blueprint string is not available for older local updates.</em>}
+                    {version.blueprintString ? <CopyBlueprintButton blueprintString={version.blueprintString} blueprintId={blueprint.id} initialBlueprintCopies={initialCopyCount} /> : <em>Original blueprint string is not available for older local updates.</em>}
                   </li>
                 ))}
               </ol>
@@ -451,7 +492,7 @@ export function BlueprintDetailView({
 
         <aside className="detail-sidebar">
           <section className="copy-panel">
-            <CopyBlueprintButton blueprintString={blueprint.blueprintString} />
+            <CopyBlueprintButton blueprintString={blueprint.blueprintString} blueprintId={blueprint.id} initialBlueprintCopies={initialCopyCount} />
             <code>{blueprint.blueprintString}</code>
           </section>
 

@@ -3,13 +3,21 @@
 import { useState } from "react";
 import { incrementBlueprintCopyCount } from "@/lib/blueprints";
 
-export function CopyBlueprintButton({ blueprintString }: { blueprintString: string }) {
+export function CopyBlueprintButton({
+  blueprintString,
+  blueprintId,
+  initialBlueprintCopies = 0,
+}: {
+  blueprintString: string;
+  blueprintId?: string;
+  initialBlueprintCopies?: number;
+}) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
 
   async function copyBlueprint() {
     try {
       await navigator.clipboard.writeText(blueprintString);
-      incrementBlueprintCopyCount();
+      incrementBlueprintCopyCount(blueprintId, initialBlueprintCopies);
       setCopyState("copied");
     } catch (error) {
       console.error("Could not copy blueprint string", error);

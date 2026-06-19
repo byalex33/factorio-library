@@ -1,6 +1,12 @@
 import { LocalBlueprintList } from "@/components/local-blueprint-list";
 
-export default function BrowsePage() {
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const query = (await searchParams).q;
+  const initialQuery = Array.isArray(query) ? query[0] ?? "" : query ?? "";
   return (
     <main className="browse-page">
       <header className="browse-heading">
@@ -9,7 +15,7 @@ export default function BrowsePage() {
         <span>Your locally added blueprint strings</span>
       </header>
 
-      <LocalBlueprintList />
+      <LocalBlueprintList key={initialQuery} initialQuery={initialQuery} />
     </main>
   );
 }

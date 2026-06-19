@@ -35,6 +35,8 @@ export type StoredBlueprintReport = {
 export const BLUEPRINT_STORAGE_KEY = "factorio-library.blueprints.v1";
 export const BLUEPRINT_REPORT_STORAGE_KEY = "factorio-library.blueprint-reports.v1";
 export const BLUEPRINT_COPY_COUNT_STORAGE_KEY = "factorio-library.blueprint-copy-count.v1";
+export const BLUEPRINT_LIKE_STORAGE_KEY = "factorio-library.blueprint-likes.v1";
+export const BLUEPRINT_ENGAGEMENT_STORAGE_KEY = "factorio-library.blueprint-engagement.v1";
 const MAX_STORED_BLUEPRINTS = 100;
 const MAX_BLUEPRINT_STRING_LENGTH = 2_000_000;
 
@@ -135,6 +137,166 @@ function normalizeStoredBlueprintReport(value: unknown): StoredBlueprintReport |
   if (!id || !blueprintId || !blueprintTitle || !reason) return null;
 
   return { id, blueprintId, blueprintTitle, blueprintAuthor, reason, details, reporter, createdAt: normalizedCreatedAt };
+}
+
+type BlueprintLikeStore = {
+  counts: Record<string, number>;
+  likedIds: string[];
+};
+
+type BlueprintEngagementStore = {
+  views: Record<string, number>;
+  copies: Record<string, number>;
+};
+
+function normalizePositiveInteger(value: unknown) {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function normalizeCountRecord(value: unknown) {
+  const record = asRecord(value);
+  const counts: Record<string, number> = {};
+
+  if (!record) return counts;
+
+  for (const [id, count] of Object.entries(record)) {
+    const normalizedId = asTrimmedString(id, 120);
+    const normalizedCount = normalizePositiveInteger(count);
+    if (normalizedId && normalizedCount > 0) counts[normalizedId] = normalizedCount;
+  }
+
+  return counts;
+}
+
+function normalizeBlueprintLikeStore(value: unknown): BlueprintLikeStore {
+  const record = asRecord(value);
+  const counts = normalizeCountRecord(record?.counts);
+
+  const likedIdsValue = record?.likedIds;
+  const likedIds = Array.isArray(likedIdsValue)
+    ? Array.from(new Set(likedIdsValue.map((id) => asTrimmedString(id, 120)).filter(Boolean)))
+    : [];
+
+  return { counts, likedIds };
+}
+
+function readBlueprintLikeStore(): BlueprintLikeStore {
+  if (typeof window === "undefined") return { counts: {}, likedIds: [] };
+
+  try {
+    const raw = window.localStorage.getItem(BLUEPRINT_LIKE_STORAGE_KEY);
+    if (!raw) return { counts: {}, likedIds: [] };
+    return normalizeBlueprintLikeStore(JSON.parse(raw));
+  } catch {
+    return { counts: {}, likedIds: [] };
+  }
+}
+
+function writeBlueprintLikeStore(store: BlueprintLikeStore) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(BLUEPRINT_LIKE_STORAGE_KEY, JSON.stringify(normalizeBlueprintLikeStore(store)));
+  window.dispatchEvent(new Event("factorio-library:blueprint-likes-updated"));
+}
+
+export function readBlueprintLikeState(blueprintId: string, initialCount = 0) {
+  const id = blueprintId.trim();
+  const store = readBlueprintLikeStore();
+  const count = store.counts[id] ?? normalizePositiveInteger(initialCount);
+
+  return {
+    count,
+    liked: store.likedIds.includes(id),
+  };
+}
+
+export function toggleBlueprintLike(blueprintId: string, initialCount = 0) {
+  const id = blueprintId.trim();
+  if (!id) return { count: 0, liked: false };
+
+  const store = readBlueprintLikeStore();
+  const liked = store.likedIds.includes(id);
+  const currentCount = store.counts[id] ?? normalizePositiveInteger(initialCount);
+  const nextState = liked
+    ? { count: Math.max(0, currentCount - 1), liked: false }
+    : { count: currentCount + 1, liked: true };
+
+  writeBlueprintLikeStore({
+    counts: { ...store.counts, [id]: nextState.count },
+    likedIds: nextState.liked
+      ? Array.from(new Set([...store.likedIds, id]))
+      : store.likedIds.filter((likedId) => likedId !== id),
+  });
+
+  return nextState;
+}
+
+function normalizeBlueprintEngagementStore(value: unknown): BlueprintEngagementStore {
+  const record = asRecord(value);
+
+  return {
+    views: normalizeCountRecord(record?.views),
+    copies: normalizeCountRecord(record?.copies),
+  };
+}
+
+function readBlueprintEngagementStore(): BlueprintEngagementStore {
+  if (typeof window === "undefined") return { views: {}, copies: {} };
+
+  try {
+    const raw = window.localStorage.getItem(BLUEPRINT_ENGAGEMENT_STORAGE_KEY);
+    if (!raw) return { views: {}, copies: {} };
+    return normalizeBlueprintEngagementStore(JSON.parse(raw));
+  } catch {
+    return { views: {}, copies: {} };
+  }
+}
+
+function writeBlueprintEngagementStore(store: BlueprintEngagementStore) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(BLUEPRINT_ENGAGEMENT_STORAGE_KEY, JSON.stringify(normalizeBlueprintEngagementStore(store)));
+  window.dispatchEvent(new Event("factorio-library:blueprint-engagement-updated"));
+}
+
+export function readBlueprintEngagementState(blueprintId: string, initialViews = 0, initialCopies = 0) {
+  const id = blueprintId.trim();
+  const store = readBlueprintEngagementStore();
+
+  return {
+    views: store.views[id] ?? normalizePositiveInteger(initialViews),
+    copies: store.copies[id] ?? normalizePositiveInteger(initialCopies),
+  };
+}
+
+export function incrementBlueprintViewCount(blueprintId: string, initialViews = 0, initialCopies = 0) {
+  const id = blueprintId.trim();
+  if (!id) return { views: 0, copies: 0 };
+
+  const store = readBlueprintEngagementStore();
+  const nextStore = {
+    views: { ...store.views, [id]: (store.views[id] ?? normalizePositiveInteger(initialViews)) + 1 },
+    copies: { ...store.copies },
+  };
+
+  if (nextStore.copies[id] === undefined && normalizePositiveInteger(initialCopies) > 0) {
+    nextStore.copies[id] = normalizePositiveInteger(initialCopies);
+  }
+
+  writeBlueprintEngagementStore(nextStore);
+  return readBlueprintEngagementState(id, initialViews, initialCopies);
+}
+
+function incrementBlueprintSpecificCopyCount(blueprintId: string, initialCopies = 0) {
+  const id = blueprintId.trim();
+  if (!id) return;
+
+  const store = readBlueprintEngagementStore();
+  writeBlueprintEngagementStore({
+    views: { ...store.views },
+    copies: { ...store.copies, [id]: (store.copies[id] ?? normalizePositiveInteger(initialCopies)) + 1 },
+  });
 }
 
 function normalizeStoredBlueprint(value: unknown): StoredBlueprint | null {
@@ -277,11 +439,12 @@ export function readBlueprintCopyCount() {
   return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
 }
 
-export function incrementBlueprintCopyCount() {
+export function incrementBlueprintCopyCount(blueprintId?: string, initialBlueprintCopies = 0) {
   if (typeof window === "undefined") return 0;
 
   const nextCount = readBlueprintCopyCount() + 1;
   window.localStorage.setItem(BLUEPRINT_COPY_COUNT_STORAGE_KEY, String(nextCount));
+  if (blueprintId) incrementBlueprintSpecificCopyCount(blueprintId, initialBlueprintCopies);
   window.dispatchEvent(new Event("factorio-library:blueprint-copies-updated"));
   return nextCount;
 }
