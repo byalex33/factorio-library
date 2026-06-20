@@ -5,15 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   blueprintCategories,
   gameVersions,
-  makeBlueprintId,
-  parseTags,
-  saveStoredBlueprint,
   validateBlueprintString,
   type GameVersion,
-  type StoredBlueprint,
 } from "@/lib/blueprints";
+import { createBlueprintAction } from "@/lib/blueprint-actions";
 
-export function UploadBlueprintForm({ author }: { author: string }) {
+export function UploadBlueprintForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -26,7 +23,7 @@ export function UploadBlueprintForm({ author }: { author: string }) {
 
   const stringError = useMemo(() => validateBlueprintString(blueprintString), [blueprintString]);
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
     setError(null);
@@ -45,28 +42,28 @@ export function UploadBlueprintForm({ author }: { author: string }) {
 
     setSaving(true);
 
-    const now = new Date().toISOString();
-    const blueprint: StoredBlueprint = {
-      id: makeBlueprintId(cleanTitle),
-      title: cleanTitle,
-      description: description.trim(),
-      category,
-      gameVersion,
-      tags: parseTags(tags),
-      blueprintString: blueprintString.trim(),
-      author,
-      createdAt: now,
-      updatedAt: now,
-      updates: [],
-    };
-
     try {
-      saveStoredBlueprint(blueprint);
-      router.push(`/blueprints/${blueprint.id}`);
+      const result = await createBlueprintAction({
+        title: cleanTitle,
+        description,
+        category,
+        gameVersion,
+        tags,
+        blueprintString,
+      });
+
+      if (!result.ok) {
+        setError(result.error);
+        setSaving(false);
+        return;
+      }
+
+      router.push(`/blueprints/${result.id}`);
+      router.refresh();
     } catch (err) {
       console.error(err);
       setSaving(false);
-      setError("Could not save this blueprint in your browser. The string may be too large for local storage.");
+      setError("Could not save this blueprint in Neon. Please try again.");
     }
   }
 

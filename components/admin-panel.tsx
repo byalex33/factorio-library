@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
-  BLUEPRINT_REPORT_STORAGE_KEY,
-  BLUEPRINT_STORAGE_KEY,
   blueprintCategories,
-  deleteStoredBlueprintReport,
   formatUsername,
   gameVersions,
-  readStoredBlueprintReports,
-  readStoredBlueprints,
-  writeStoredBlueprintReports,
-  writeStoredBlueprints,
+  normalizeStoredBlueprint,
   type StoredBlueprint,
   type StoredBlueprintReport,
 } from "@/lib/blueprints";
+import {
+  clearBlueprintsAction,
+  clearReportsAction,
+  deleteBlueprintsAction,
+  dismissReportAction,
+  importBlueprintsAction,
+} from "@/lib/blueprint-actions";
 
 type ImportMode = "merge" | "replace";
 
@@ -40,64 +42,17 @@ function downloadJson(filename: string, data: unknown) {
   URL.revokeObjectURL(url);
 }
 
-function subscribeToBlueprints(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("factorio-library:blueprints-updated", onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("factorio-library:blueprints-updated", onStoreChange);
-  };
-}
-
-function subscribeToReports(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("factorio-library:blueprint-reports-updated", onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("factorio-library:blueprint-reports-updated", onStoreChange);
-  };
-}
-
-let cachedBlueprintRaw: string | null = null;
-let cachedBlueprints: StoredBlueprint[] = [];
-let cachedReportRaw: string | null = null;
-let cachedReports: StoredBlueprintReport[] = [];
-const serverBlueprints: StoredBlueprint[] = [];
-const serverReports: StoredBlueprintReport[] = [];
-
-function getBlueprintSnapshot() {
-  const raw = window.localStorage.getItem(BLUEPRINT_STORAGE_KEY) || "";
-  if (raw !== cachedBlueprintRaw) {
-    cachedBlueprintRaw = raw;
-    cachedBlueprints = readStoredBlueprints();
-  }
-
-  return cachedBlueprints;
-}
-
-function getServerBlueprintSnapshot() {
-  return serverBlueprints;
-}
-
-function getReportSnapshot() {
-  const raw = window.localStorage.getItem(BLUEPRINT_REPORT_STORAGE_KEY) || "";
-  if (raw !== cachedReportRaw) {
-    cachedReportRaw = raw;
-    cachedReports = readStoredBlueprintReports();
-  }
-
-  return cachedReports;
-}
-
-function getServerReportSnapshot() {
-  return serverReports;
-}
-
-export function AdminPanel({ adminName }: { adminName: string }) {
-  const blueprints = useSyncExternalStore(subscribeToBlueprints, getBlueprintSnapshot, getServerBlueprintSnapshot);
-  const reports = useSyncExternalStore(subscribeToReports, getReportSnapshot, getServerReportSnapshot);
+export function AdminPanel({
+  adminName,
+  blueprints,
+  reports,
+}: {
+  adminName: string;
+  blueprints: StoredBlueprint[];
+  reports: StoredBlueprintReport[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -146,9 +101,14 @@ export function AdminPanel({ adminName }: { adminName: string }) {
 
   const allFilteredSelected = filteredBlueprints.length > 0 && filteredBlueprints.every((blueprint) => activeSelectedIds.includes(blueprint.id));
 
-  function persist(nextBlueprints: StoredBlueprint[], message: string) {
-    writeStoredBlueprints(nextBlueprints);
-    setNotice(message);
+  function runAction(action: () => Promise<{ ok: boolean; error?: string }>, success: string) {
+    startTransition(async () => {
+      const result = await action();
+      setNotice(result.ok ? success : result.error ?? "Action failed.");
+      if (result.ok) {
+        router.refresh();
+      }
+    });
   }
 
   function toggleSelected(id: string) {
@@ -166,29 +126,24 @@ export function AdminPanel({ adminName }: { adminName: string }) {
 
   function deleteSelected() {
     if (activeSelectedIds.length === 0) return;
-    const message = `Deleted ${activeSelectedIds.length} blueprint${activeSelectedIds.length === 1 ? "" : "s"}.`;
-    persist(
-      blueprints.filter((blueprint) => !activeSelectedIds.includes(blueprint.id)),
-      message,
-    );
+    const count = activeSelectedIds.length;
+    runAction(async () => deleteBlueprintsAction(activeSelectedIds), `Deleted ${count} blueprint${count === 1 ? "" : "s"}.`);
     setSelectedIds([]);
   }
 
   function clearLibrary() {
-    if (!window.confirm("Delete every locally stored blueprint? This cannot be undone.")) return;
-    persist([], "Library cleared.");
+    if (!window.confirm("Delete every blueprint in Neon? This cannot be undone.")) return;
+    runAction(clearBlueprintsAction, "Library cleared.");
     setSelectedIds([]);
   }
 
   function dismissReport(id: string) {
-    deleteStoredBlueprintReport(id);
-    setNotice("Report dismissed.");
+    runAction(async () => dismissReportAction(id), "Report dismissed.");
   }
 
-  function clearReports() {
+  function clearAllReports() {
     if (!window.confirm("Dismiss every stored report?")) return;
-    writeStoredBlueprintReports([]);
-    setNotice("Report queue cleared.");
+    runAction(clearReportsAction, "Report queue cleared.");
   }
 
   async function importBlueprints(file: File | undefined) {
@@ -197,14 +152,12 @@ export function AdminPanel({ adminName }: { adminName: string }) {
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
       const incoming = Array.isArray(parsed) ? parsed : [];
-      const existing = importMode === "merge" ? blueprints : [];
-      const existingIds = new Set(existing.map((blueprint) => blueprint.id));
-      const merged = [
-        ...incoming.filter((item): item is StoredBlueprint => Boolean(item && typeof item === "object" && !existingIds.has((item as StoredBlueprint).id))),
-        ...existing,
-      ];
-
-      persist(merged, `Imported ${incoming.length.toLocaleString()} item${incoming.length === 1 ? "" : "s"}.`);
+      const normalized = incoming.map(normalizeStoredBlueprint).filter(Boolean);
+      startTransition(async () => {
+        const result = await importBlueprintsAction(normalized, importMode);
+        setNotice(result.ok ? `Imported ${result.imported.toLocaleString()} item${result.imported === 1 ? "" : "s"}.` : result.error);
+        if (result.ok) router.refresh();
+      });
     } catch {
       setNotice("Import failed. Upload a JSON export from this admin panel.");
     } finally {
@@ -213,13 +166,13 @@ export function AdminPanel({ adminName }: { adminName: string }) {
   }
 
   return (
-    <div className="mt-10 space-y-8">
+    <div className="mt-10 space-y-8" aria-busy={isPending}>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[
-          ["Blueprints", stats.total.toLocaleString(), "Locally stored records"],
+          ["Blueprints", stats.total.toLocaleString(), "Neon records"],
           ["Reports", reports.length.toLocaleString(), "Pending moderation items"],
           ["Categories", stats.categories.toLocaleString(), "Active taxonomy groups"],
-          ["Storage", formatBytes(stats.bytes), BLUEPRINT_STORAGE_KEY],
+          ["Payload", formatBytes(stats.bytes), "Current JSON export size"],
           ["Latest update", stats.newest ? new Date(stats.newest).toLocaleDateString() : "None", `Signed in as ${adminName}`],
         ].map(([label, value, detail]) => (
           <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
@@ -240,7 +193,7 @@ export function AdminPanel({ adminName }: { adminName: string }) {
             <div className="flex flex-wrap gap-3">
               <Link href="/upload" className="rounded-lg bg-factory-amber px-4 py-2 text-sm font-bold text-[#1a1402]">Add blueprint</Link>
               <button onClick={() => downloadJson(`factorio-library-${Date.now()}.json`, blueprints)} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-bold text-stone-200">Export JSON</button>
-              <button onClick={deleteSelected} disabled={activeSelectedIds.length === 0} className="rounded-lg border border-red-400/30 px-4 py-2 text-sm font-bold text-red-200 disabled:cursor-not-allowed disabled:opacity-40">Delete selected</button>
+              <button onClick={deleteSelected} disabled={activeSelectedIds.length === 0 || isPending} className="rounded-lg border border-red-400/30 px-4 py-2 text-sm font-bold text-red-200 disabled:cursor-not-allowed disabled:opacity-40">Delete selected</button>
             </div>
           </div>
 
@@ -306,7 +259,7 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                 <p className="font-mono text-xs uppercase tracking-[0.28em] text-factory-amber">Reports</p>
                 <h2 className="mt-2 font-display text-2xl font-semibold uppercase text-stone-100">Moderation queue</h2>
               </div>
-              <button onClick={clearReports} disabled={reports.length === 0} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-stone-200 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
+              <button onClick={clearAllReports} disabled={reports.length === 0 || isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-stone-200 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
             </div>
             {reports.length ? (
               <div className="mt-5 space-y-3">
@@ -317,7 +270,7 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                         <Link href={`/blueprints/${report.blueprintId}`} className="font-semibold text-stone-100 hover:text-factory-amber">{report.blueprintTitle}</Link>
                         <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.16em] text-factory-amber">{report.reason}</p>
                       </div>
-                      <button onClick={() => dismissReport(report.id)} className="rounded-md border border-white/10 px-2 py-1 text-xs font-bold text-stone-300">Dismiss</button>
+                      <button onClick={() => dismissReport(report.id)} disabled={isPending} className="rounded-md border border-white/10 px-2 py-1 text-xs font-bold text-stone-300 disabled:opacity-40">Dismiss</button>
                     </div>
                     {report.details ? <p className="mt-3 text-sm leading-6 text-stone-400">{report.details}</p> : null}
                     <p className="mt-3 text-xs text-stone-600">By {report.reporter} · {new Date(report.createdAt).toLocaleString()}</p>
@@ -325,21 +278,21 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                 ))}
               </div>
             ) : (
-              <p className="mt-4 text-sm leading-6 text-stone-400">No reports submitted in this browser.</p>
+              <p className="mt-4 text-sm leading-6 text-stone-400">No reports stored in Neon.</p>
             )}
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
             <p className="font-mono text-xs uppercase tracking-[0.28em] text-factory-amber">Data tools</p>
             <h2 className="mt-2 font-display text-2xl font-semibold uppercase text-stone-100">Import / export</h2>
-            <p className="mt-3 text-sm leading-6 text-stone-400">Move local blueprint records between browsers or seed a test library.</p>
+            <p className="mt-3 text-sm leading-6 text-stone-400">Move blueprint records into Neon or export a database snapshot.</p>
             <div className="mt-5 grid gap-3">
               <select value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)} className="rounded-lg border border-white/10 bg-[#10110b] px-4 py-3 text-stone-100">
                 <option value="merge">Merge with existing</option>
                 <option value="replace">Replace library</option>
               </select>
               <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={(event) => importBlueprints(event.target.files?.[0])} className="text-sm text-stone-400 file:mr-3 file:rounded-lg file:border-0 file:bg-factory-amber file:px-4 file:py-2 file:font-bold file:text-[#1a1402]" />
-              <button onClick={clearLibrary} className="rounded-lg border border-red-400/30 px-4 py-2 text-sm font-bold text-red-200">Clear local library</button>
+              <button onClick={clearLibrary} disabled={isPending} className="rounded-lg border border-red-400/30 px-4 py-2 text-sm font-bold text-red-200 disabled:opacity-40">Clear Neon library</button>
             </div>
             {notice ? <p className="mt-4 rounded-lg border border-factory-amber/25 bg-factory-amber/10 px-3 py-2 text-sm text-factory-amber">{notice}</p> : null}
           </div>
@@ -350,7 +303,7 @@ export function AdminPanel({ adminName }: { adminName: string }) {
               <li>✓ Review uploads for title quality and useful descriptions.</li>
               <li>✓ Export JSON before bulk deletes or replacement imports.</li>
               <li>✓ Keep categories consistent with Factorio discovery pages.</li>
-              <li>✓ Set admin access with Clerk metadata role=admin or ADMIN_EMAILS.</li>
+              <li>✓ Set DATABASE_URL in both local env and Vercel.</li>
             </ul>
           </div>
         </aside>

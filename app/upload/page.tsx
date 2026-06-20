@@ -19,7 +19,7 @@ export default async function UploadPage() {
 
       <Panel className="mt-10 p-6">
         {user && handle ? (
-          <UploadBlueprintForm author={handle} />
+          <UploadBlueprintForm />
         ) : (
           <div className="empty-library-panel compact-empty-panel">
             <strong>Sign in required</strong>

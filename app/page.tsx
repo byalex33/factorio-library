@@ -2,6 +2,8 @@ import Link from "next/link";
 import { HomeArchiveStatus } from "@/components/home-archive-status";
 import { HomeRecentBlueprints } from "@/components/home-recent-blueprints";
 
+export const dynamic = "force-dynamic";
+
 function SearchIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6 fill-none stroke-current" strokeWidth="2">

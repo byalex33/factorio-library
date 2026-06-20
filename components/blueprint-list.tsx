@@ -3,28 +3,27 @@ import { BlueprintLikeCount } from "@/components/blueprint-like-count";
 import { UserIcon } from "@/components/blueprint-visuals";
 import { BlueprintViewer } from "@/src/components/blueprints/BlueprintViewer";
 import { formatUsername } from "@/lib/blueprints";
-import { listRecentBlueprints } from "@/lib/blueprint-db";
+import { listBlueprints } from "@/lib/blueprint-db";
 
-export async function HomeRecentBlueprints() {
-  const blueprints = await listRecentBlueprints(3);
+export async function BlueprintList({ initialQuery = "" }: { initialQuery?: string }) {
+  const blueprints = await listBlueprints({ query: initialQuery });
 
   return (
-    <section className="category-section home-recent-section" aria-labelledby="recent-blueprints-heading">
-      <div className="category-heading-row">
-        <h2 id="recent-blueprints-heading">
-          Recent blueprints <span>{blueprints.length || "new"}</span>
-        </h2>
-        <Link href="/browse">Browse all →</Link>
-      </div>
+    <>
+      <form action="/browse" className="browse-search-row">
+        <input name="q" defaultValue={initialQuery} placeholder="Search community blueprints" />
+        <button type="submit">Search</button>
+        <Link href="/upload">Add blueprint</Link>
+      </form>
 
       {blueprints.length === 0 ? (
-        <div className="empty-library-panel compact-empty-panel">
-          <strong>No recent blueprints yet</strong>
-          <p>Upload a blueprint string to start building the shared community archive.</p>
-          <Link href="/upload">Upload blueprint</Link>
-        </div>
+        <section className="empty-library-panel">
+          <strong>{initialQuery ? "No matching blueprints" : "No blueprints added yet"}</strong>
+          <p>{initialQuery ? "Try a different title, category, author, or tag." : "Add the first single Factorio blueprint string to seed the shared library."}</p>
+          <Link href="/upload">Add blueprint</Link>
+        </section>
       ) : (
-        <div className="blueprint-grid-list" aria-label="Recent blueprint results">
+        <section className="blueprint-grid-list" aria-label="Blueprint results">
           {blueprints.map((blueprint) => (
             <article className="blueprint-card" key={blueprint.id}>
               <Link href={`/blueprints/${blueprint.id}`} className="blueprint-card-link">
@@ -46,8 +45,8 @@ export async function HomeRecentBlueprints() {
               </Link>
             </article>
           ))}
-        </div>
+        </section>
       )}
-    </section>
+    </>
   );
 }

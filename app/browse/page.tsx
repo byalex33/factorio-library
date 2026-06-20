@@ -1,4 +1,6 @@
-import { LocalBlueprintList } from "@/components/local-blueprint-list";
+import { BlueprintList } from "@/components/blueprint-list";
+
+export const dynamic = "force-dynamic";
 
 export default async function BrowsePage({
   searchParams,
@@ -12,10 +14,10 @@ export default async function BrowsePage({
       <header className="browse-heading">
         <p>All blueprints</p>
         <h1>Browse blueprints</h1>
-        <span>Your locally added blueprint strings</span>
+        <span>Shared blueprints stored in Neon</span>
       </header>
 
-      <LocalBlueprintList key={initialQuery} initialQuery={initialQuery} />
+      <BlueprintList key={initialQuery} initialQuery={initialQuery} />
     </main>
   );
 }

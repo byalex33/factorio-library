@@ -4,7 +4,10 @@ import { AdminPanel } from "@/components/admin-panel";
 import { PageShell } from "@/components/site-shell";
 import { Panel, SectionHeader } from "@/components/ui";
 import { isAdminUser } from "@/lib/admin";
+import { listBlueprints, listReports } from "@/lib/blueprint-db";
 import { getUserHandle } from "@/lib/users";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const user = await currentUser();
@@ -44,6 +47,8 @@ export default async function AdminPage() {
     );
   }
 
+  const [blueprints, reports] = await Promise.all([listBlueprints({ limit: 500 }), listReports()]);
+
   return (
     <PageShell>
       <SectionHeader
@@ -51,7 +56,7 @@ export default async function AdminPage() {
         title="Factory control room"
         description="Monitor library health, review blueprint records, and run data maintenance tools from one place."
       />
-      <AdminPanel adminName={handle || "admin"} />
+      <AdminPanel adminName={handle || "admin"} blueprints={blueprints} reports={reports} />
     </PageShell>
   );
 }
