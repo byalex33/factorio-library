@@ -22,6 +22,8 @@ import { UIContainer } from './UI/UIContainer'
 import { Dialog } from './UI/controls/Dialog'
 import { ActionRegistry, MouseButton } from './actions'
 
+let assetsInitPromise: Promise<void> | null = null
+
 export interface EditorInitOptions {
     previewOnly?: boolean
     width?: number
@@ -53,6 +55,10 @@ export class Editor {
         const width = options.width ?? window.innerWidth
         const height = options.height ?? window.innerHeight
 
+        if (!assetsInitPromise) {
+            assetsInitPromise = Assets.init()
+        }
+
         await Promise.all([
             fetch('/data/data.json')
                 .then(res => res.text())
@@ -69,7 +75,7 @@ export class Editor {
                 bezierSmoothness: 0.75,
                 hello: true,
             }),
-            Assets.init(),
+            assetsInitPromise,
         ])
 
         this.app = app
